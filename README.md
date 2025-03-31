@@ -7,8 +7,11 @@ A Python application that allows you to download videos and audio from YouTube, 
 - Download YouTube videos in high quality
 - Download audio-only from YouTube videos
 - Download both video and audio
+- List available formats before downloading
+- Specify custom format codes for advanced users
 - Transcribe downloaded audio using OpenAI's Whisper large-v3 model
 - Simple command-line interface
+- Helpful error messages and troubleshooting suggestions
 
 ## Requirements
 
@@ -39,8 +42,13 @@ A Python application that allows you to download videos and audio from YouTube, 
 
 2. Follow the prompts:
    - Enter the YouTube video URL
-   - Specify download location (or press Enter for current directory)
-   - Choose what to download (video, audio, or both)
+   - Specify download location (or press Enter for default directory)
+   - Choose what to download:
+     - Video only
+     - Audio only
+     - Both video and audio
+     - List available formats first (recommended for troubleshooting)
+   - If you choose to list formats, you can then select a download option or specify a custom format code
    - If audio is downloaded, you'll be asked if you want to transcribe it
 
 3. For transcription:
@@ -86,6 +94,32 @@ If no API key is found, you'll be prompted to enter it when using the transcript
 - Transcription quality depends on the audio quality and OpenAI's model
 - Transcription of long audio files may take some time
 - Using the OpenAI API for transcription will incur charges based on your OpenAI account
+
+## Troubleshooting
+
+### Format Not Available Error
+
+If you encounter a "Requested format is not available" error:
+
+1. Try using option 4 to list available formats first
+2. Then choose option 5 to specify a custom format code
+3. For audio-only downloads (option 2), try format codes like 140 (m4a), 251 (webm), or 250 (webm)
+4. For video downloads, you can combine formats like "137+140" (video+audio)
+5. If all else fails, try option 2 (Audio only) which has better compatibility
+
+### PhantomJS Warning
+
+If you see warnings about PhantomJS:
+
+1. These are usually not critical and the download may still work
+2. If downloads fail, you can install PhantomJS from https://phantomjs.org/download.html
+3. After installing, make sure it's in your system PATH
+
+### Other Issues
+
+- Make sure you have the latest version of yt-dlp installed
+- Some videos may have restrictions that prevent downloading
+- For region-restricted videos, you may need to use a VPN
 
 ## License
 
