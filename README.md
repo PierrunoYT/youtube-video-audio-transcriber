@@ -1,6 +1,6 @@
 # YouTube Video & Audio Downloader with Transcription
 
-A Python application that allows you to download videos and audio from YouTube, with the option to transcribe audio using OpenAI's Whisper large-v3 model.
+A Python application that allows you to download videos and audio from YouTube, with the option to transcribe audio using OpenAI's Whisper model.
 
 ## Features
 
@@ -9,7 +9,7 @@ A Python application that allows you to download videos and audio from YouTube, 
 - Download both video and audio
 - List available formats before downloading
 - Specify custom format codes for advanced users
-- Transcribe downloaded audio using OpenAI's Whisper large-v3 model
+- Transcribe downloaded audio using OpenAI's Whisper model
 - Simple command-line interface
 - Helpful error messages and troubleshooting suggestions
 

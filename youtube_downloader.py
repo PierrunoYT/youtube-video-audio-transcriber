@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def transcribe_audio(audio_file_path):
-    """Transcribe audio using OpenAI's Whisper large-v3 model and save as markdown"""
+    """Transcribe audio using OpenAI's Whisper model and save as markdown"""
     try:
         # Check if API key is set
         if not os.environ.get("OPENAI_API_KEY"):
