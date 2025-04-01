@@ -54,7 +54,7 @@ def transcribe_audio(audio_file_path):
             f.write(f"# Transcript: {video_title}\n\n")
 
             # Format paragraphs for better readability
-            paragraphs = transcript.text.split('. ')
+            paragraphs = transcript.split('. ')
             for i, paragraph in enumerate(paragraphs):
                 if i < len(paragraphs) - 1:
                     f.write(f"{paragraph}.\n\n")
@@ -63,8 +63,43 @@ def transcribe_audio(audio_file_path):
 
         print(f"\nTranscription completed and saved to: {transcript_path}")
         return transcript_path
+    except openai.APIConnectionError:
+        print("\nError during transcription: Unable to connect to OpenAI API")
+        print("Troubleshooting tips:")
+        print("- Check your internet connection")
+        print("- Verify the OpenAI API service is available: https://status.openai.com")
+        return None
+    except openai.APIError as e:
+        print(f"\nError during transcription: OpenAI API error - {str(e)}")
+        print("Troubleshooting tips:")
+        print("- This could be a temporary issue with OpenAI's service")
+        print("- Try again in a few minutes")
+        return None
+    except openai.RateLimitError:
+        print("\nError during transcription: OpenAI API rate limit exceeded")
+        print("Troubleshooting tips:")
+        print("- You've reached your API usage limit")
+        print("- Wait and try again later or check your API usage limits in your OpenAI account")
+        return None
+    except openai.AuthenticationError:
+        print("\nError during transcription: Invalid OpenAI API key")
+        print("Troubleshooting tips:")
+        print("- Check that you've entered your API key correctly")
+        print("- Verify your API key is still valid in your OpenAI account")
+        print("- Create a new API key if needed: https://platform.openai.com/api-keys")
+        return None
+    except (FileNotFoundError, PermissionError) as e:
+        print(f"\nError during transcription: File system error - {str(e)}")
+        print("Troubleshooting tips:")
+        print("- Check if the file exists and you have permission to access it")
+        print("- Try downloading the file again")
+        return None
     except Exception as e:
         print(f"\nError during transcription: {str(e)}")
+        print("Troubleshooting tips:")
+        print("- Try downloading the audio file again")
+        print("- Make sure the audio file is in a supported format (MP3, M4A, WAV, etc.)")
+        print("- Check that the audio file is not corrupted")
         return None
 
 
@@ -349,14 +384,57 @@ def download_video():
             else:
                 print("\nTranscription skipped.")
 
+    except yt_dlp.utils.DownloadError as e:
+        error_message = str(e)
+        print("\nDownload Error:", error_message)
+        
+        if "Requested format is not available" in error_message:
+            print("\nTroubleshooting tips:")
+            print("- Try using option 2 (Audio only) which often has better compatibility")
+            print("- Use option 4 to list available formats first, then choose a specific format")
+            print("- For audio-only downloads, try format codes like 140 (m4a), 251 (webm), or 250 (webm)")
+            print("- Try downloading from a different video")
+        elif "Private video" in error_message or "Sign in to confirm your age" in error_message:
+            print("\nTroubleshooting tips:")
+            print("- This video is private or age-restricted and cannot be downloaded")
+            print("- Try downloading a different video")
+        elif "This video is unavailable" in error_message:
+            print("\nTroubleshooting tips:")
+            print("- The video may have been removed or is not available in your country")
+            print("- Check if the video URL is correct")
+            print("- Try downloading a different video")
+        elif "HTTP Error 429" in error_message:
+            print("\nTroubleshooting tips:")
+            print("- YouTube is rate-limiting downloads from your IP address")
+            print("- Wait a while before trying again")
+            print("- Try downloading fewer videos in a short period")
+        else:
+            print("\nTroubleshooting tips:")
+            print("- Check your internet connection")
+            print("- Verify that the YouTube URL is valid and accessible in your browser")
+            print("- Try using a different download option")
+            print("- Update yt-dlp to the latest version with: pip install -U yt-dlp")
+            
+        print("\nFor technical support, please provide the following error details:")
+        print(f"Error: {error_message}")
+    except (FileNotFoundError, PermissionError) as e:
+        print(f"\nFile system error: {str(e)}")
+        print("\nTroubleshooting tips:")
+        print("- Check if the download directory exists and you have permission to write to it")
+        print("- Try specifying a different download location")
+        print("- Make sure you have sufficient disk space")
+        
+        print("\nFor technical support, please provide the following error details:")
+        print(f"Error: {str(e)}")
     except Exception as e:
         error_message = str(e)
-        print("\nAn error occurred:", error_message)
-
-        if "Requested format is not available" in error_message:
-            print("\nTry using option 2 (Audio only) which often has better compatibility.")
-            print("Or you can try again with a different video.")
-
+        print("\nAn unexpected error occurred:", error_message)
+        
+        print("\nTroubleshooting tips:")
+        print("- Try restarting the application")
+        print("- Check if FFmpeg is installed correctly (required for audio extraction)")
+        print("- Update all dependencies with: pip install -r requirements.txt")
+        
         print("\nFor technical support, please provide the following error details:")
         print(f"Error: {error_message}")
 
