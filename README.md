@@ -1,6 +1,6 @@
-# YouTube Video & Audio Downloader with Transcription
+# YouTube Video & Audio Downloader with Transcription and AI Analysis
 
-A Python application that allows you to download videos and audio from YouTube, with the option to transcribe audio using OpenAI's Whisper model.
+A Python application that allows you to download videos and audio from YouTube, with the option to transcribe audio using OpenAI's Whisper model or Google's Gemini API. The Gemini API integration also enables summarization and question answering based on the audio content.
 
 ## Features
 
@@ -10,6 +10,7 @@ A Python application that allows you to download videos and audio from YouTube, 
 - List available formats before downloading
 - Specify custom format codes for advanced users
 - Transcribe downloaded audio using OpenAI's Whisper model
+- Transcribe, summarize, and ask questions about audio using Google's Gemini API
 - Simple command-line interface
 - Helpful error messages and troubleshooting suggestions
 
@@ -17,7 +18,8 @@ A Python application that allows you to download videos and audio from YouTube, 
 
 - Python 3.7 or higher
 - FFmpeg (required for audio extraction and conversion)
-- OpenAI API key (for transcription feature)
+- OpenAI API key (for OpenAI transcription feature)
+- Google Gemini API key (for Gemini transcription, summarization, and Q&A features)
 
 ## Installation
 
@@ -62,8 +64,9 @@ The application is organized into several modules:
 
 - `main.py` - Entry point and user interface
 - `downloader.py` - Functions for downloading videos and audio
-- `transcriber.py` - Functions for transcribing audio
-- `utils.py` - Utility functions for URL validation and error handling
+- `transcriber.py` - Functions for transcribing audio with OpenAI
+- `gemini_api.py` - Functions for transcribing, summarizing, and Q&A with Google Gemini
+- `utils.py` - Utility functions for URL validation, file handling, and error handling
 - `config.py` - Configuration and environment variable handling
 
 ## Environment Variables
@@ -76,15 +79,20 @@ This application uses environment variables for configuration. You can set these
 
    ```
    # OpenAI API Key for transcription feature
-   OPENAI_API_KEY=your_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
+
+   # Google Gemini API Key for advanced AI features
+   GEMINI_API_KEY=your_gemini_api_key_here
 
    # Default download path (optional)
    DEFAULT_DOWNLOAD_PATH=C:\Downloads
    ```
 
-### Setting up OpenAI API Key
+### Setting up API Keys
 
-For the transcription feature to work, you need an OpenAI API key:
+#### OpenAI API Key
+
+For the OpenAI transcription feature to work, you need an OpenAI API key:
 
 1. Sign up at [OpenAI](https://platform.openai.com/signup)
 2. Generate an API key in your account dashboard
@@ -94,13 +102,29 @@ Alternatively, you can set it as a system environment variable:
    - **Windows**: `set OPENAI_API_KEY=your-api-key`
    - **macOS/Linux**: `export OPENAI_API_KEY=your-api-key`
 
-If no API key is found, you'll be prompted to enter it when using the transcription feature.
+#### Google Gemini API Key
+
+For the Gemini AI features (transcription, summarization, Q&A) to work, you need a Google Gemini API key:
+
+1. Go to [Google AI Studio](https://ai.google.dev/)
+2. Sign in with your Google account
+3. Navigate to the API section and create an API key
+4. Add it to your `.env` file as shown above
+
+Alternatively, you can set it as a system environment variable:
+   - **Windows**: `set GEMINI_API_KEY=your-api-key`
+   - **macOS/Linux**: `export GEMINI_API_KEY=your-api-key`
+
+If no API keys are found, you'll be prompted to enter them when using the respective features.
 
 ## Notes
 
-- Transcription quality depends on the audio quality and OpenAI's model
+- Transcription quality depends on the audio quality and the AI model used
 - Transcription of long audio files may take some time
 - Using the OpenAI API for transcription will incur charges based on your OpenAI account
+- Using the Google Gemini API will incur charges based on your Google AI account
+- The Gemini API has a 20MB file size limit for inline data (larger files use file upload API)
+- The Gemini API supports audio formats including MP3, WAV, AIFF, AAC, OGG, and FLAC
 
 ## Troubleshooting
 

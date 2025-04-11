@@ -13,6 +13,10 @@ def get_openai_api_key():
     """Get OpenAI API key from environment variables"""
     return os.environ.get("OPENAI_API_KEY")
 
+def get_gemini_api_key():
+    """Get Google Gemini API key from environment variables"""
+    return os.environ.get("GEMINI_API_KEY")
+
 # Default paths
 def get_default_download_path():
     """Get default download path from environment variables or use current directory"""

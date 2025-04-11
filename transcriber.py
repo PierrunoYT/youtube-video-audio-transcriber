@@ -102,16 +102,76 @@ def transcribe_audio(audio_file_path):
 def handle_transcription_option(audio_file_path):
     """Handle the transcription option for downloaded audio"""
     print("\n" + "=" * 60)
-    print("TRANSCRIPTION OPTION")
+    print("TRANSCRIPTION OPTIONS")
     print("=" * 60)
     print("The downloaded file contains audio that can be transcribed.")
+    print("You can choose between different transcription services:")
+    print("1. OpenAI's Whisper model (best for accurate transcription)")
+    print("2. Google's Gemini API (allows summarization and Q&A)")
+
+    service_choice = input("\nChoose a transcription service (1-2, or press Enter for OpenAI): ")
+
+    if service_choice == "2":
+        # Import Gemini API module
+        try:
+            from gemini_api import handle_gemini_transcription_option
+            handle_gemini_transcription_option(audio_file_path)
+        except ImportError:
+            print("\nError: Gemini API module not found. Falling back to OpenAI.")
+            _handle_openai_transcription(audio_file_path)
+    else:
+        # Default to OpenAI
+        _handle_openai_transcription(audio_file_path)
+
+def _handle_openai_transcription(audio_file_path):
+    """Handle OpenAI transcription specifically"""
+    print("\n" + "=" * 60)
+    print("OPENAI TRANSCRIPTION")
+    print("=" * 60)
     print("OpenAI's Whisper model will be used for transcription.")
-    print("The transcription will be saved as a markdown file.")
+    print("The transcription will be saved as a text file.")
     transcribe_choice = input("\nWould you like to transcribe the audio using OpenAI's Whisper model? (Press Enter for yes/n for no): ").lower()
     if transcribe_choice in ["", "yes", "y"]:
         transcript_path = transcribe_audio(audio_file_path)
         if transcript_path and os.path.exists(transcript_path):
             print(f"\nTranscription saved successfully to: {transcript_path}")
             print("You can open this markdown file in any text editor or markdown viewer.")
+
+            # Add Gemini AI features after successful transcription
+            print("\nWould you like to:")
+            print("1. Summarize the transcript")
+            print("2. Ask a single question about the content")
+            print("3. Start an interactive chat about the transcript")
+            print("4. Start an interactive chat with the original audio")
+            print("5. Skip")
+
+            gemini_choice = input("\nEnter your choice (1-5): ")
+
+            try:
+                if gemini_choice == "1":
+                    from gemini_api import summarize_transcript
+                    summary_path = summarize_transcript(transcript_path)
+                    if summary_path:
+                        print(f"\nSummary saved to: {summary_path}")
+
+                elif gemini_choice == "2":
+                    from gemini_api import ask_question_about_transcript
+                    question = input("\nEnter your question: ")
+                    ask_question_about_transcript(transcript_path, question)
+
+                elif gemini_choice == "3":
+                    from gemini_api import chat_with_content
+                    chat_with_content(transcript_path, "transcript")
+
+                elif gemini_choice == "4":
+                    from gemini_api import chat_with_content
+                    chat_with_content(audio_file_path, "audio")
+
+                else:
+                    print("\nSkipping AI features.")
+
+            except ImportError:
+                print("\nError: Gemini API module not available. Skipping AI features.")
     else:
         print("\nTranscription skipped.")
+

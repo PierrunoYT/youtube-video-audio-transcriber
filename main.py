@@ -13,7 +13,7 @@ def handle_download():
     try:
         # Get the YouTube video URL from user
         url = input("Please enter the YouTube video URL: ")
-        
+
         # Validate URL format
         if not validate_url(url):
             print(f"\nError: '{url}' does not appear to be a valid YouTube URL.")
@@ -28,7 +28,7 @@ def handle_download():
         download_path = input(f"\nEnter download path (press Enter for {default_path}): ")
         if not download_path:
             download_path = default_path
-            
+
         # Verify the download path exists
         if not os.path.exists(download_path):
             create_dir = input(f"Directory {download_path} doesn't exist. Create it? (y/n): ").lower()
@@ -55,7 +55,7 @@ def handle_download():
         if choice == "4":
             if not list_formats(url):
                 print("Failed to list formats. Continuing with basic options...")
-            
+
             print("\nNow that you've seen the available formats, what would you like to download?")
             print("1. Video only (MP4)")
             print("2. Audio only (MP3)")
@@ -117,7 +117,7 @@ def handle_download():
             }
             download_type = "video"
             downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
-            
+
         elif choice == "2":  # Audio only (MP3)
             ydl_opts = {
                 'format': 'bestaudio/best',
@@ -132,16 +132,16 @@ def handle_download():
             download_type = "audio"
             is_audio_download = True
             downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
-            
+
         elif choice == "3":  # Video and separate audio file (no merging)
             video_path, audio_path = download_video_audio_separately(url, download_path)
-            
+
             if audio_path and os.path.exists(audio_path):
                 downloaded_file_path = audio_path
                 is_audio_download = True
             elif video_path:
                 downloaded_file_path = video_path
-            
+
             download_type = "video and separate audio"
 
         if not downloaded_file_path or not os.path.exists(downloaded_file_path):
@@ -162,14 +162,16 @@ def handle_download():
         handle_generic_error(e)
 
 def main():
-    print("YouTube Video & Audio Downloader with Whisper Transcription")
+    print("YouTube Video & Audio Downloader with AI Transcription & Analysis")
     print("======================================================")
     print("Features:")
     print("- Download videos in MP4 format")
     print("- Extract audio as separate MP3 files")
     print("- Download both video and audio as separate files (no merging)")
-    print("- Transcribe audio using OpenAI's Whisper model")
-    print("- Save transcriptions as markdown files")
+    print("- Transcribe audio using OpenAI's Whisper model or Google's Gemini API")
+    print("- Summarize transcripts using Google's Gemini API")
+    print("- Interactive chat with transcript or audio content using Gemini")
+    print("- Save transcriptions and summaries as text files")
     print("======================================================")
     handle_download()
 
