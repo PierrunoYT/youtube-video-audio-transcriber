@@ -34,7 +34,14 @@ def check_gemini_availability():
             return False
 
         # Configure the Gemini API client
-        genai.configure(api_key=api_key)
+        try:
+            # Try the new SDK configuration method
+            # Store the client globally so it can be used throughout the module
+            global gemini_client
+            gemini_client = genai.Client(api_key=api_key)
+        except AttributeError:
+            # Fall back to the older library configuration method
+            genai.configure(api_key=api_key)
         return True
     except Exception as e:
         print(f"\nError configuring Gemini API: {str(e)}")
@@ -65,7 +72,10 @@ def transcribe_audio_with_gemini(audio_file_path):
             return transcribe_large_audio_with_gemini(audio_file_path)
 
         # Create a Gemini model instance
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        if 'gemini_client' in globals():
+            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+        else:
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
         # Read the audio file
         with open(audio_file_path, 'rb') as f:
@@ -108,7 +118,10 @@ def transcribe_large_audio_with_gemini(audio_file_path):
             return None
 
         # Create a client instance
-        client = genai.Client()
+        if 'gemini_client' in globals():
+            client = gemini_client
+        else:
+            client = genai.Client()
 
         # Upload the file
         print("Uploading audio file to Google Gemini...")
@@ -156,7 +169,10 @@ def summarize_transcript(transcript_path):
             transcript_text = f.read()
 
         # Create a Gemini model instance
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        if 'gemini_client' in globals():
+            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+        else:
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
         # Create the prompt for summarization
         prompt = f"""
@@ -210,7 +226,10 @@ def ask_question_about_audio(audio_file_path, question):
             return ask_question_about_large_audio(audio_file_path, question)
 
         # Create a Gemini model instance
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        if 'gemini_client' in globals():
+            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+        else:
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
         # Read the audio file
         with open(audio_file_path, 'rb') as f:
@@ -255,7 +274,10 @@ def ask_question_about_large_audio(audio_file_path, question):
             return None
 
         # Create a client instance
-        client = genai.Client()
+        if 'gemini_client' in globals():
+            client = gemini_client
+        else:
+            client = genai.Client()
 
         # Upload the file
         print("Uploading audio file to Google Gemini...")
@@ -305,7 +327,10 @@ def ask_question_about_transcript(transcript_path, question):
             transcript_text = f.read()
 
         # Create a Gemini model instance
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        if 'gemini_client' in globals():
+            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+        else:
+            model = genai.GenerativeModel('gemini-1.5-flash')
 
         # Create the prompt with the question
         prompt = f"""
@@ -420,7 +445,10 @@ def chat_with_content(content_path, content_type="transcript"):
                 content_text = f.read()
 
             # Create a Gemini model instance with chat capability
-            model = genai.GenerativeModel('gemini-1.5-pro')
+            if 'gemini_client' in globals():
+                model = gemini_client.models.generate_content_model('gemini-1.5-pro')
+            else:
+                model = genai.GenerativeModel('gemini-1.5-pro')
 
             # Create system instruction
             system_instruction = f"You are an AI assistant that helps users understand and analyze the content of a transcript. "\
