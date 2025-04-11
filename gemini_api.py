@@ -73,7 +73,8 @@ def transcribe_audio_with_gemini(audio_file_path):
 
         # Create a Gemini model instance
         if 'gemini_client' in globals():
-            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+            # The new SDK uses a different approach
+            model = gemini_client.models.get_model('gemini-1.5-flash')
         else:
             model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -170,7 +171,8 @@ def summarize_transcript(transcript_path):
 
         # Create a Gemini model instance
         if 'gemini_client' in globals():
-            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+            # The new SDK uses a different approach
+            model = gemini_client.models.get_model('gemini-1.5-flash')
         else:
             model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -227,7 +229,8 @@ def ask_question_about_audio(audio_file_path, question):
 
         # Create a Gemini model instance
         if 'gemini_client' in globals():
-            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+            # The new SDK uses a different approach
+            model = gemini_client.models.get_model('gemini-1.5-flash')
         else:
             model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -328,7 +331,8 @@ def ask_question_about_transcript(transcript_path, question):
 
         # Create a Gemini model instance
         if 'gemini_client' in globals():
-            model = gemini_client.models.generate_content_model('gemini-1.5-flash')
+            # The new SDK uses a different approach
+            model = gemini_client.models.get_model('gemini-1.5-flash')
         else:
             model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -446,7 +450,8 @@ def chat_with_content(content_path, content_type="transcript"):
 
             # Create a Gemini model instance with chat capability
             if 'gemini_client' in globals():
-                model = gemini_client.models.generate_content_model('gemini-1.5-pro')
+                # The new SDK uses a different approach
+                model = gemini_client.models.get_model('gemini-1.5-pro')
             else:
                 model = genai.GenerativeModel('gemini-1.5-pro')
 
