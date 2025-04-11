@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from getpass import getpass
 from pathlib import Path
 from config import load_config
-import magic  # For more reliable MIME type detection (install python-magic)
+# Removed magic library dependency
 
 # Initialize logging (you can customize this)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -171,7 +171,7 @@ def _save_transcript(audio_file_path, transcript_text, service="gemini"):
 
 def _get_mime_type(file_path):
     """
-    Determine MIME type based on file extension using Python's mimetypes module.
+    Determine MIME type based on file extension.
     
     Args:
         file_path (str): Path to the file
@@ -179,22 +179,18 @@ def _get_mime_type(file_path):
     Returns:
         str: MIME type corresponding to the file extension, defaults to 'audio/mpeg' if unknown
     """
-    import mimetypes
-    
-    # Initialize mimetypes if not already done
-    if not mimetypes.inited:
-        mimetypes.init()
-    
-    # Add common audio MIME types that might be missing
-    mimetypes.add_type('audio/mpeg', '.mp3')
-    mimetypes.add_type('audio/mp4', '.m4a')
-    mimetypes.add_type('audio/aac', '.aac')
-    mimetypes.add_type('audio/ogg', '.ogg')
-    mimetypes.add_type('audio/flac', '.flac')
-    mimetypes.add_type('audio/aiff', '.aiff')
-    
-    mime_type, _ = mimetypes.guess_type(file_path)
-    return mime_type or 'audio/mpeg'  # Default to audio/mpeg if not detected
+    # Simple dictionary-based approach for common audio formats
+    mime_types = {
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.m4a': 'audio/mp4',
+        '.aac': 'audio/aac',
+        '.ogg': 'audio/ogg',
+        '.flac': 'audio/flac',
+        '.aiff': 'audio/aiff',
+    }
+    ext = os.path.splitext(file_path)[1].lower()
+    return mime_types.get(ext, 'audio/mpeg')  # Default to audio/mpeg
 
 
 def handle_gemini_error(error):
