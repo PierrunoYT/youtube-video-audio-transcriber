@@ -18,9 +18,8 @@ A Python application that allows you to download videos and audio from YouTube, 
 
 - Python 3.7 or higher
 - FFmpeg (required for audio extraction and conversion)
-- OpenAI API key (for OpenAI transcription feature)
+- OpenAI API key (for OpenAI transcription feature) 
 - Google Gemini API key (for Gemini transcription, summarization, and Q&A features)
-- python-magic library (for MIME type detection)
 
 ## Installation
 
@@ -118,7 +117,7 @@ Alternatively, you can set it as a system environment variable:
 
 Note: This application uses the official `google-generativeai` Python SDK (v0.3.0 or higher). If you get an import error, you may need to install it manually:
 ```
-pip install google-generativeai python-magic
+pip install google-generativeai
 ```
 
 If no API keys are found, you'll be prompted to enter them when using the respective features.
