@@ -20,6 +20,7 @@ A Python application that allows you to download videos and audio from YouTube, 
 - FFmpeg (required for audio extraction and conversion)
 - OpenAI API key (for OpenAI transcription feature)
 - Google Gemini API key (for Gemini transcription, summarization, and Q&A features)
+- python-magic library (for MIME type detection)
 
 ## Installation
 
@@ -115,6 +116,11 @@ Alternatively, you can set it as a system environment variable:
    - **Windows**: `set GEMINI_API_KEY=your-api-key`
    - **macOS/Linux**: `export GEMINI_API_KEY=your-api-key`
 
+Note: This application uses the official `google-generativeai` Python SDK (v0.3.0 or higher). If you get an import error, you may need to install it manually:
+```
+pip install google-generativeai python-magic
+```
+
 If no API keys are found, you'll be prompted to enter them when using the respective features.
 
 ## Notes
@@ -125,6 +131,22 @@ If no API keys are found, you'll be prompted to enter them when using the respec
 - Using the Google Gemini API will incur charges based on your Google AI account
 - The Gemini API has a 20MB file size limit for inline data (larger files use file upload API)
 - The Gemini API supports audio formats including MP3, WAV, AIFF, AAC, OGG, and FLAC
+- This application uses the official `google-generativeai` SDK for Gemini API integration
+
+## Testing
+
+To run the test suite:
+
+```
+python test_gemini.py
+```
+
+The test suite verifies:
+- URL validation functionality
+- Gemini API connectivity
+- Text generation capabilities
+- Audio transcription functionality
+- Error handling
 
 ## Troubleshooting
 
