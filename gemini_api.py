@@ -8,17 +8,22 @@ from utils import get_api_key_securely
 
 # Import Gemini API library
 try:
-    import google.generativeai as genai
-    from google.generativeai import types
+    import google.genai as genai
     GEMINI_AVAILABLE = True
 except ImportError:
-    GEMINI_AVAILABLE = False
+    try:
+        # Try the older library as fallback
+        import google.generativeai as genai
+        GEMINI_AVAILABLE = True
+    except ImportError:
+        GEMINI_AVAILABLE = False
 
 def check_gemini_availability():
     """Check if Gemini API is available and properly configured"""
     if not GEMINI_AVAILABLE:
         print("\nGoogle Gemini API library is not installed.")
         print("To install it, run: pip install google-genai")
+        print("Note: The new Google Gen AI SDK has replaced the older google-generativeai library.")
         return False
 
     try:
@@ -70,14 +75,17 @@ def transcribe_audio_with_gemini(audio_file_path):
         mime_type = get_mime_type(audio_file_path)
 
         # Create the prompt for transcription
-        prompt = [
-            "Generate a complete and accurate transcript of this audio file.",
-            types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+        prompt = "Generate a complete and accurate transcript of this audio file."
+
+        # Create content with the audio data
+        contents = [
+            prompt,
+            {"inlineData": {"mimeType": mime_type, "data": audio_bytes}}
         ]
 
         # Generate the transcript
         print("Sending file to Google Gemini for transcription...")
-        response = model.generate_content(prompt)
+        response = model.generate_content(contents)
 
         if not response or not response.text:
             print("Error: No response from Gemini API.")
@@ -112,7 +120,7 @@ def transcribe_large_audio_with_gemini(audio_file_path):
         # Generate the transcript
         print("Requesting transcription from Google Gemini...")
         response = model.generate_content(
-            ["Generate a complete and accurate transcript of this audio file.", uploaded_file]
+            ["Generate a complete and accurate transcript of this audio file.", {"fileData": {"fileUri": uploaded_file.uri, "mimeType": "audio/mpeg"}}]
         )
 
         if not response or not response.text:
@@ -212,14 +220,17 @@ def ask_question_about_audio(audio_file_path, question):
         mime_type = get_mime_type(audio_file_path)
 
         # Create the prompt with the question
-        prompt = [
-            f"Listen to this audio and answer the following question: {question}",
-            types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+        prompt = f"Listen to this audio and answer the following question: {question}"
+
+        # Create content with the audio data
+        contents = [
+            prompt,
+            {"inlineData": {"mimeType": mime_type, "data": audio_bytes}}
         ]
 
         # Generate the answer
         print("\nProcessing audio and generating answer using Google's Gemini API...")
-        response = model.generate_content(prompt)
+        response = model.generate_content(contents)
 
         if not response or not response.text:
             print("Error: No response from Gemini API.")
@@ -256,7 +267,7 @@ def ask_question_about_large_audio(audio_file_path, question):
         # Generate the answer
         print("Processing audio and generating answer...")
         response = model.generate_content(
-            [f"Listen to this audio and answer the following question: {question}", uploaded_file]
+            [f"Listen to this audio and answer the following question: {question}", {"fileData": {"fileUri": uploaded_file.uri, "mimeType": "audio/mpeg"}}]
         )
 
         if not response or not response.text:
@@ -401,8 +412,7 @@ def chat_with_content(content_path, content_type="transcript"):
             print(f"Error: File {content_path} does not exist.")
             return None
 
-        # Initialize chat history
-        chat_history = []
+        # Initialize chat session
 
         # Read the content
         if content_type == "transcript":
@@ -412,12 +422,9 @@ def chat_with_content(content_path, content_type="transcript"):
             # Create a Gemini model instance with chat capability
             model = genai.GenerativeModel('gemini-1.5-pro')
 
-            # Add initial system message to chat history
-            chat_history.append({
-                "role": "system",
-                "content": f"You are an AI assistant that helps users understand and analyze the content of a transcript. "
-                           f"You will answer questions based only on the information in the following transcript:\n\n{content_text}"
-            })
+            # Create system instruction
+            system_instruction = f"You are an AI assistant that helps users understand and analyze the content of a transcript. "\
+                               f"You will answer questions based only on the information in the following transcript:\n\n{content_text}"
 
             print("\n" + "=" * 60)
             print("CHAT WITH TRANSCRIPT CONTENT")
@@ -455,19 +462,18 @@ def chat_with_content(content_path, content_type="transcript"):
 
             # Process based on content type
             if content_type == "transcript":
-                # Add user message to chat history
-                chat_history.append({"role": "user", "content": user_input})
-
                 # Generate response
                 print("\nAI is thinking...")
-                response = model.generate_content(chat_history)
+                response = model.generate_content(
+                    contents=user_input,
+                    generation_config={
+                        "system_instruction": system_instruction
+                    }
+                )
 
                 if not response or not response.text:
                     print("Error: No response from Gemini API.")
                     continue
-
-                # Add assistant response to chat history
-                chat_history.append({"role": "assistant", "content": response.text})
 
                 # Display response
                 print("\nAI:")
