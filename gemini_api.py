@@ -327,14 +327,10 @@ def handle_gemini_transcription_option(audio_file_path):
             if transcript_path and os.path.exists(transcript_path):
                 print(f"\nTranscription saved successfully to: {transcript_path}")
                 _handle_post_transcription_gemini_options(audio_file_path, transcript_path)
-        except APIError as e:
-            logging.error(f"Gemini API Error: {e}")
-            print(f"\nError during transcription: {e}")
-        except FilesystemError as e:
-            logging.error(f"Filesystem Error: {e}")
-            print(f"\nError during transcription: {e}")
         except Exception as e:
-            logging.error(f"Unexpected error: {e}")
+            # Exceptions are already handled in transcribe_audio_with_gemini
+            # This is just a fallback in case something unexpected happens
+            logging.error(f"Unexpected error in transcription: {e}")
             print(f"\nAn unexpected error occurred: {e}")
     else:
         print("\nTranscription cancelled.")
@@ -364,14 +360,10 @@ def _handle_post_transcription_gemini_options(audio_file_path, transcript_path):
             chat_with_content(audio_file_path, "audio")
         else:
             print("\nSkipping additional processing.")
-    except APIError as e:
-        logging.error(f"Gemini API Error: {e}")
-        print(f"\nError processing content: {e}")
-    except FilesystemError as e:
-        logging.error(f"Filesystem Error: {e}")
-        print(f"\nError processing content: {e}")
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
+        # All exceptions are already handled in the called functions
+        # This is just a fallback in case something unexpected happens
+        logging.error(f"Unexpected error in post-transcription options: {e}")
         print(f"\nAn unexpected error occurred: {e}")
 
 
