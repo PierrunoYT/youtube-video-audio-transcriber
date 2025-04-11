@@ -115,7 +115,11 @@ Alternatively, you can set it as a system environment variable:
    - **Windows**: `set GEMINI_API_KEY=your-api-key`
    - **macOS/Linux**: `export GEMINI_API_KEY=your-api-key`
 
-Note: This application uses the official `google-generativeai` Python SDK (v0.3.0 or higher). If you get an import error, you may need to install it manually:
+Note: This application uses the official `google-generativeai` Python SDK (v0.3.0 or higher) with advanced Gemini models:
+- Gemini 2.0 Flash for transcription and basic operations
+- Gemini 2.5 Pro Preview for interactive chat and complex reasoning
+
+If you get an import error, you may need to install it manually:
 ```
 pip install google-generativeai
 ```

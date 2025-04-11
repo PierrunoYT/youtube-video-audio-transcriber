@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Gemini model constants
-GEMINI_MODEL_FLASH = 'gemini-1.5-flash'
-GEMINI_MODEL_PRO = 'gemini-1.5-pro'
+GEMINI_MODEL_FLASH = 'gemini-2.0-flash'           # Faster model for transcription and basic operations
+GEMINI_MODEL_PRO = 'gemini-2.5-pro-preview-03-25' # Advanced model for chatting and complex reasoning
 
 def load_config():
     """Load configuration settings from environment variables."""
