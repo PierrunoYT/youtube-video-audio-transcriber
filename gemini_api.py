@@ -73,10 +73,12 @@ def transcribe_audio_with_gemini(audio_file_path):
         prompt = "Generate a complete and accurate transcript of this audio file."
 
         # Create content with the audio data
-        contents = [
-            prompt,
-            {"inlineData": {"mimeType": mime_type, "data": audio_bytes}}
-        ]
+        contents = {
+            "contents": [
+                {"parts": [{"text": prompt}]},
+                {"parts": [{"inline_data": {"mime_type": mime_type, "data": audio_bytes}}]}
+            ]
+        }
 
         # Generate the transcript
         print("Sending file to Google Gemini for transcription...")
@@ -218,10 +220,12 @@ def ask_question_about_audio(audio_file_path, question):
         prompt = f"Listen to this audio and answer the following question: {question}"
 
         # Create content with the audio data
-        contents = [
-            prompt,
-            {"inlineData": {"mimeType": mime_type, "data": audio_bytes}}
-        ]
+        contents = {
+            "contents": [
+                {"parts": [{"text": prompt}]},
+                {"parts": [{"inline_data": {"mime_type": mime_type, "data": audio_bytes}}]}
+            ]
+        }
 
         # Generate the answer
         print("\nProcessing audio and generating answer using Google's Gemini API...")
