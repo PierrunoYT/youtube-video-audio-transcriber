@@ -2,56 +2,139 @@
 Main module for the YouTube downloader application.
 Handles user interaction and orchestrates the download and transcription process.
 """
+
 import os
 import yt_dlp
-from config import get_default_download_path
+from config import load_config
 from utils import validate_url, handle_download_error, handle_filesystem_error, handle_generic_error
 from downloader import list_formats, download_media, download_video_audio_separately
 from transcriber import handle_transcription_option
 
-def handle_download():
-    try:
-        # Get the YouTube video URL from user
-        url = input("Please enter the YouTube video URL: ")
+def _get_user_input(prompt, default=None):
+    """Get user input with an optional default value."""
+    if default:
+        return input(f"{prompt} (press Enter for {default}): ") or default
+    return input(prompt)
 
-        # Validate URL format
+def _validate_and_create_dir(path):
+    """Validate if a directory exists, and create it if the user agrees."""
+
+    if not os.path.exists(path):
+        create_dir = _get_user_input(f"Directory {path} doesn't exist. Create it? (y/n): ").lower()
+        if create_dir == 'y':
+            try:
+                os.makedirs(path, exist_ok=True)
+                print(f"Created directory: {path}")
+                return True
+            except Exception as e:
+                print(f"Error creating directory: {str(e)}")
+                return False
+        else:
+            print("Download cancelled.")
+            return False
+    return True
+
+def _handle_custom_format_download(url, download_path):
+    """Handle downloading with a custom format code."""
+
+    format_code = _get_user_input("\nEnter the format code (e.g., 137+140, 22, etc.): ")
+    extract_audio = _get_user_input("Do you want to extract audio as MP3? (y/n): ").lower() in ['y', 'yes']
+
+    ydl_opts = {
+        'format': format_code,
+        'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+        'verbose': False,
+    }
+
+    if extract_audio:
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }]
+        is_audio_download = True
+    else:
+        is_audio_download = any(code in format_code for code in ['140', '139', '249', '250', '251', 'bestaudio']) or 'audio' in format_code.lower()
+
+    download_type = "custom format" + ("/audio extraction" if extract_audio else "")
+
+    print(f"\nSelected download type: {download_type}")
+    print(f"Audio will be available for transcription: {is_audio_download}")
+
+    downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
+
+    if downloaded_file_path and is_audio_download and os.path.exists(downloaded_file_path):
+        handle_transcription_option(downloaded_file_path)
+
+def _handle_standard_download(url, download_path, choice):
+    """Handle standard download options (video, audio, both)."""
+
+    download_type = "content"
+    is_audio_download = False
+    downloaded_file_path = None
+
+    if choice == "1":  # Video only (MP4)
+        ydl_opts = {
+            'format': 'bestvideo[ext=mp4]/best[ext=mp4]/best',
+            'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+            'verbose': False,
+        }
+        download_type = "video"
+        downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
+
+    elif choice == "2":  # Audio only (MP3)
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+            'verbose': False,
+        }
+        download_type = "audio"
+        is_audio_download = True
+        downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
+
+    elif choice == "3":  # Video and separate audio file (no merging)
+        video_path, audio_path = download_video_audio_separately(url, download_path)
+        if audio_path and os.path.exists(audio_path):
+            downloaded_file_path = audio_path
+            is_audio_download = True
+        elif video_path:
+            downloaded_file_path = video_path
+        download_type = "video and separate audio"
+
+    if downloaded_file_path and os.path.exists(downloaded_file_path) and is_audio_download:
+        handle_transcription_option(downloaded_file_path)
+
+def handle_download():
+    """Main function to handle the download process."""
+
+    try:
+        url = _get_user_input("Please enter the YouTube video URL: ")
         if not validate_url(url):
             print(f"\nError: '{url}' does not appear to be a valid YouTube URL.")
             print("Valid YouTube URLs should be in one of these formats:")
-            print("- https://www.youtube.com/watch?v=VIDEO_ID")
-            print("- https://youtu.be/VIDEO_ID")
-            print("- https://www.youtube.com/shorts/VIDEO_ID")
+            print("- www.youtube.com")
+            print("- m.youtube.com")
+            print("- youtube.com")
             return
 
-        # Get download path from user or environment variable
-        default_path = get_default_download_path()
-        download_path = input(f"\nEnter download path (press Enter for {default_path}): ")
-        if not download_path:
-            download_path = default_path
+        config = load_config()  # Load configuration
+        download_path = _get_user_input("\nEnter download path", config["default_download_path"])
 
-        # Verify the download path exists
-        if not os.path.exists(download_path):
-            create_dir = input(f"Directory {download_path} doesn't exist. Create it? (y/n): ").lower()
-            if create_dir == 'y':
-                try:
-                    os.makedirs(download_path, exist_ok=True)
-                    print(f"Created directory: {download_path}")
-                except Exception as e:
-                    print(f"Error creating directory: {str(e)}")
-                    return
-            else:
-                print("Download cancelled.")
-                return
+        if not _validate_and_create_dir(download_path):
+            return
 
-        # Ask user what to download
         print("\nWhat would you like to download?")
         print("1. Video only (MP4)")
         print("2. Audio only (MP3)")
         print("3. Video and separate audio file (no merging)")
         print("4. List available formats first")
-        choice = input("Enter your choice (1-4): ")
+        choice = _get_user_input("Enter your choice (1-4): ")
 
-        # If user wants to list formats first
         if choice == "4":
             if not list_formats(url):
                 print("Failed to list formats. Continuing with basic options...")
@@ -61,98 +144,14 @@ def handle_download():
             print("2. Audio only (MP3)")
             print("3. Video and separate audio file (no merging)")
             print("5. Specify custom format code")
-            choice = input("Enter your choice (1-3, 5): ")
+            choice = _get_user_input("Enter your choice (1-3, 5): ")
 
-            # If user wants to specify a custom format
             if choice == "5":
-                format_code = input("\nEnter the format code (e.g., 137+140, 22, etc.): ")
-                extract_audio = input("Do you want to extract audio as MP3? (y/n): ").lower() in ['y', 'yes']
-
-                ydl_opts = {
-                    'format': format_code,
-                    'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
-                    'verbose': False,
-                }
-
-                # Add audio extraction if requested
-                if extract_audio:
-                    ydl_opts['postprocessors'] = [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': '192',
-                    }]
-                    is_audio_download = True
-                else:
-                    # Check if the format includes audio
-                    is_audio_download = any(code in format_code for code in ['140', '139', '249', '250', '251', 'bestaudio']) or 'audio' in format_code.lower()
-
-                download_type = "custom format" + ("/audio extraction" if extract_audio else "")
-
-                print(f"\nSelected download type: {download_type}")
-                print(f"Audio will be available for transcription: {is_audio_download}")
-
-                # Download the content with custom format
-                downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
-
-                if not downloaded_file_path:
-                    print("\nNo valid downloaded file found. Cannot proceed with transcription.")
-                    return
-
-                # Ask if user wants to transcribe audio if audio was downloaded
-                if is_audio_download and os.path.exists(downloaded_file_path):
-                    handle_transcription_option(downloaded_file_path)
-
-                return
-
-        # Configure yt-dlp options based on user choice
-        download_type = "content"
-        is_audio_download = False
-        downloaded_file_path = None
-
-        if choice == "1":  # Video only (MP4)
-            ydl_opts = {
-                'format': 'bestvideo[ext=mp4]/best[ext=mp4]/best',  # Best video quality in MP4 format
-                'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
-                'verbose': False,
-            }
-            download_type = "video"
-            downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
-
-        elif choice == "2":  # Audio only (MP3)
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-                'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
-                'verbose': False,
-            }
-            download_type = "audio"
-            is_audio_download = True
-            downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
-
-        elif choice == "3":  # Video and separate audio file (no merging)
-            video_path, audio_path = download_video_audio_separately(url, download_path)
-
-            if audio_path and os.path.exists(audio_path):
-                downloaded_file_path = audio_path
-                is_audio_download = True
-            elif video_path:
-                downloaded_file_path = video_path
-
-            download_type = "video and separate audio"
-
-        if not downloaded_file_path or not os.path.exists(downloaded_file_path):
-            print("\nNo valid downloaded file found. Cannot proceed with transcription.")
-            return
-
-        print(f"\n{download_type.capitalize()} download completed!")
-
-        # Ask if user wants to transcribe audio if audio was downloaded
-        if is_audio_download and os.path.exists(downloaded_file_path):
-            handle_transcription_option(downloaded_file_path)
+                _handle_custom_format_download(url, download_path)
+            else:
+                _handle_standard_download(url, download_path, choice)
+        else:
+            _handle_standard_download(url, download_path, choice)
 
     except yt_dlp.utils.DownloadError as e:
         handle_download_error(e)
@@ -162,6 +161,8 @@ def handle_download():
         handle_generic_error(e)
 
 def main():
+    """Main entry point of the application."""
+
     print("YouTube Video & Audio Downloader with AI Transcription & Analysis")
     print("======================================================")
     print("Features:")
