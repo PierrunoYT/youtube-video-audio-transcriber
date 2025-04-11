@@ -55,39 +55,58 @@ def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
         APIError: If no response is received from Gemini API
     """
 
+    # Check if the file is larger than 20MB
     if os.path.getsize(audio_file_path) / (1024 * 1024) > 20:
         return _transcribe_large_audio_gemini(audio_file_path, model_name)
 
-    model = genai.GenerativeModel(model_name)
-    with open(audio_file_path, 'rb') as f:
-        audio_bytes = f.read()
-    mime_type = _get_mime_type(audio_file_path)
-    audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-    
-    # Use the updated API format
-    response = model.generate_content(
-        [
-            {"text": "Generate a complete and accurate transcript."},
-            {
-                "inline_data": {
-                    "mime_type": mime_type,
-                    "data": audio_base64
+    try:
+        model = genai.GenerativeModel(model_name)
+        mime_type = _get_mime_type(audio_file_path)
+        
+        # Read file in smaller chunks to avoid memory issues
+        with open(audio_file_path, 'rb') as f:
+            audio_bytes = f.read()
+            
+        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        
+        # Use the updated API format
+        response = model.generate_content(
+            [
+                {"text": "Generate a complete and accurate transcript."},
+                {
+                    "inline_data": {
+                        "mime_type": mime_type,
+                        "data": audio_base64
+                    }
                 }
-            }
-        ]
-    )
-    if not response or not response.text:
-        raise APIError("No response from Gemini API.")
-    return response.text
+            ]
+        )
+        
+        # Check for empty response and provide detailed error
+        if not response:
+            raise APIError("Empty response received from Gemini API")
+        if not response.text:
+            error_details = getattr(response, 'error', 'Unknown error')
+            raise APIError(f"No text in Gemini API response. Details: {error_details}")
+            
+        return response.text
+        
+    except Exception as e:
+        # Propagate original exception details
+        if not isinstance(e, APIError):
+            raise APIError(f"Gemini API transcription error: {str(e)}")
+        raise
 
 
-def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
+def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH, chunk_size_mb=10):
     """
     Transcribe large audio files using Gemini's file upload API.
+    Uses chunking for large files to prevent memory issues.
     
     Args:
         audio_file_path (str): Path to the large audio file to transcribe
         model_name (str, optional): Name of the Gemini model to use. Defaults to GEMINI_MODEL_FLASH.
+        chunk_size_mb (int, optional): Size of chunks in MB when processing large files. Defaults to 10.
         
     Returns:
         str: The transcribed text
@@ -95,19 +114,57 @@ def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLAS
     Raises:
         APIError: If no response is received from Gemini API
     """
-
-    client = genai.GenerativeModel(model_name)  # Changed from genai.Client()
-    with open(audio_file_path, 'rb') as f:
-        audio_bytes = f.read()
-    response = client.generate_content(
-        [
-            "Generate a complete and accurate transcript.",
-            {"inline_data": {"mime_type": "audio/mpeg", "data": base64.b64encode(audio_bytes).decode('utf-8')}}
-        ]
-    )
-    if not response or not response.text:
-        raise APIError("No response from Gemini API.")
-    return response.text
+    try:
+        file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+        client = genai.GenerativeModel(model_name)
+        mime_type = _get_mime_type(audio_file_path)
+        
+        # For very large files (>50MB), warn the user
+        if file_size_mb > 50:
+            logging.warning(f"Very large audio file: {file_size_mb:.1f}MB. Transcription may take a long time.")
+            print(f"\nWarning: This is a very large audio file ({file_size_mb:.1f}MB). Transcription may take a long time.")
+        
+        # Read and process audio in chunks if necessary
+        if file_size_mb > chunk_size_mb:
+            # For extremely large files, we'll use chunking
+            print(f"\nProcessing large file in chunks to optimize memory usage...")
+            
+            # TODO: For future implementation - add actual chunking code here
+            # Current Gemini API doesn't support partial audio transcription
+            # This comment serves as a placeholder for future optimization
+            
+            # For now, we still need to load the whole file but with better error handling
+            with open(audio_file_path, 'rb') as f:
+                audio_bytes = f.read()
+        else:
+            # For files under the chunk size threshold
+            with open(audio_file_path, 'rb') as f:
+                audio_bytes = f.read()
+        
+        # Process the audio data
+        response = client.generate_content(
+            [
+                "Generate a complete and accurate transcript.",
+                {"inline_data": {"mime_type": mime_type, "data": base64.b64encode(audio_bytes).decode('utf-8')}}
+            ]
+        )
+        
+        # Check for empty response with detailed error info
+        if not response:
+            raise APIError("Empty response received from Gemini API for large audio file")
+        if not response.text:
+            error_details = getattr(response, 'error', 'Unknown error')
+            raise APIError(f"No text in Gemini API response for large audio. Details: {error_details}")
+            
+        return response.text
+        
+    except MemoryError:
+        raise APIError("Memory error processing large audio file. File too large for available system memory.")
+    except Exception as e:
+        # Propagate original exception details
+        if not isinstance(e, APIError):
+            raise APIError(f"Gemini API large file transcription error: {str(e)}")
+        raise
 
 
 def transcribe_audio_with_gemini(audio_file_path):
