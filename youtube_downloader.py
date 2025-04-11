@@ -1,10 +1,22 @@
-import yt_dlp
+"""This file has been split into multiple modules for better organization.
+Please use main.py as the entry point for the application.
+
+The code has been reorganized into the following files:
+- main.py - Entry point and user interface
+- downloader.py - Functions for downloading videos and audio
+- transcriber.py - Functions for transcribing audio
+- utils.py - Utility functions for URL validation and error handling
+- config.py - Configuration and environment variable handling
+"""
+
+# Import all required modules to avoid errors in the legacy code
 import os
 import time
 import openai
 import re
 import threading
 import queue
+import yt_dlp
 from getpass import getpass
 from pathlib import Path
 from dotenv import load_dotenv
@@ -19,14 +31,14 @@ def validate_url(url):
         parsed = urlparse(url)
         if parsed.netloc not in ['www.youtube.com', 'youtube.com', 'youtu.be']:
             return False
-        
+
         if parsed.netloc == 'youtu.be' and not parsed.path:
             return False
-            
+
         if parsed.netloc in ['www.youtube.com', 'youtube.com'] and not parsed.path.startswith('/watch'):
             if not (parsed.path.startswith('/shorts/') or parsed.path.startswith('/playlist')):
                 return False
-                
+
         return True
     except:
         return False
@@ -35,7 +47,7 @@ def get_api_key_securely():
     """Get OpenAI API key securely without displaying on console"""
     if os.environ.get("OPENAI_API_KEY"):
         return os.environ.get("OPENAI_API_KEY")
-        
+
     print("\nAPI key not found in environment variables.")
     api_key = getpass("Please enter your OpenAI API key (input will be hidden): ")
     os.environ["OPENAI_API_KEY"] = api_key
@@ -45,20 +57,20 @@ def find_downloaded_file(expected_path, download_path):
     """Find downloaded file even if the expected path doesn't exist"""
     if os.path.exists(expected_path):
         return expected_path
-        
+
     # Try to find any recently created media files
     print("Searching for recently downloaded files...")
     base_dir = download_path or os.getcwd()
-    
+
     # First check for recently modified files (last 60 seconds)
     for file in os.listdir(base_dir):
         full_path = os.path.join(base_dir, file)
-        if (os.path.isfile(full_path) and 
+        if (os.path.isfile(full_path) and
             os.path.getmtime(full_path) > time.time() - 60 and
             file.endswith(('.mp4', '.mp3', '.m4a', '.webm', '.mkv'))):
             print(f"Found possible download: {full_path}")
             return full_path
-    
+
     # If still not found, try with different extension
     possible_extensions = ['.mp4', '.mp3', '.m4a', '.webm', '.mkv']
     base_filename = os.path.splitext(expected_path)[0]
@@ -67,7 +79,7 @@ def find_downloaded_file(expected_path, download_path):
         if os.path.exists(test_path):
             print(f"Found file with different extension: {test_path}")
             return test_path
-            
+
     return None
 
 def transcribe_audio(audio_file_path):
@@ -167,7 +179,7 @@ def list_formats(url):
     try:
         print("\nListing available formats...")
         formats_queue = queue.Queue()
-        
+
         def _list_formats():
             try:
                 with yt_dlp.YoutubeDL({'listformats': True, 'quiet': True}) as ydl:
@@ -175,12 +187,12 @@ def list_formats(url):
                     formats_queue.put(("success", info))
             except Exception as e:
                 formats_queue.put(("error", str(e)))
-        
+
         # Run format listing in a separate thread to avoid blocking
         format_thread = threading.Thread(target=_list_formats)
         format_thread.daemon = True
         format_thread.start()
-        
+
         # Show a loading indicator
         print("Fetching formats", end="")
         for _ in range(30):  # Timeout after ~3 seconds
@@ -189,11 +201,11 @@ def list_formats(url):
             print(".", end="", flush=True)
             time.sleep(0.1)
         print()
-        
+
         if format_thread.is_alive():
             print("Format listing is taking longer than expected, please wait...")
             format_thread.join(10)  # Wait up to 10 more seconds
-        
+
         if not formats_queue.empty():
             status, result = formats_queue.get()
             if status == "error":
@@ -211,7 +223,7 @@ def download_media(url, ydl_opts, download_type, download_path):
     """Download media with progress monitoring"""
     try:
         downloaded_file_path = None
-        
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             print(f"\nTitle: {info.get('title', 'Unknown title')}")
@@ -235,11 +247,11 @@ def download_media(url, ydl_opts, download_type, download_path):
                     download_queue.put(("success", None))
                 except Exception as e:
                     download_queue.put(("error", str(e)))
-            
+
             download_thread = threading.Thread(target=_download)
             download_thread.daemon = True
             download_thread.start()
-            
+
             # Wait for download to complete
             dots = 0
             print("Downloading", end="")
@@ -248,15 +260,15 @@ def download_media(url, ydl_opts, download_type, download_path):
                 dots = (dots + 1) % 4
                 time.sleep(0.5)
             print()
-            
+
             if not download_queue.empty():
                 status, error = download_queue.get()
                 if status == "error":
                     raise Exception(error)
-            
+
             # Verify download was successful
             downloaded_file_path = find_downloaded_file(filename, download_path)
-            
+
             if downloaded_file_path and os.path.exists(downloaded_file_path):
                 print(f"\n{download_type.capitalize()} download completed successfully!")
                 print(f"File saved at: {downloaded_file_path}")
@@ -264,9 +276,9 @@ def download_media(url, ydl_opts, download_type, download_path):
                 print(f"File size: {file_size:.2f} MB")
             else:
                 print(f"\nWARNING: Expected file not found after download.")
-            
+
             return downloaded_file_path
-            
+
     except Exception as e:
         print(f"\nError during download: {str(e)}")
         return None
@@ -280,9 +292,9 @@ def download_video_audio_separately(url, download_path):
         'outtmpl': os.path.join(download_path, '%(title)s_video.%(ext)s'),
         'verbose': False,
     }
-    
+
     video_path = download_media(url, video_opts, "video", download_path)
-    
+
     # Then download audio
     print("\nDownloading audio file second...")
     audio_opts = {
@@ -295,16 +307,16 @@ def download_video_audio_separately(url, download_path):
         'outtmpl': os.path.join(download_path, '%(title)s_audio.%(ext)s'),
         'verbose': False,
     }
-    
+
     audio_path = download_media(url, audio_opts, "audio", download_path)
-    
+
     return video_path, audio_path
 
 def handle_download():
     try:
         # Get the YouTube video URL from user
         url = input("Please enter the YouTube video URL: ")
-        
+
         # Validate URL format
         if not validate_url(url):
             print(f"\nError: '{url}' does not appear to be a valid YouTube URL.")
@@ -319,7 +331,7 @@ def handle_download():
         download_path = input(f"\nEnter download path (press Enter for {default_path}): ")
         if not download_path:
             download_path = default_path
-            
+
         # Verify the download path exists
         if not os.path.exists(download_path):
             create_dir = input(f"Directory {download_path} doesn't exist. Create it? (y/n): ").lower()
@@ -346,7 +358,7 @@ def handle_download():
         if choice == "4":
             if not list_formats(url):
                 print("Failed to list formats. Continuing with basic options...")
-            
+
             print("\nNow that you've seen the available formats, what would you like to download?")
             print("1. Video only (MP4)")
             print("2. Audio only (MP3)")
@@ -408,7 +420,7 @@ def handle_download():
             }
             download_type = "video"
             downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
-            
+
         elif choice == "2":  # Audio only (MP3)
             ydl_opts = {
                 'format': 'bestaudio/best',
@@ -423,16 +435,16 @@ def handle_download():
             download_type = "audio"
             is_audio_download = True
             downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
-            
+
         elif choice == "3":  # Video and separate audio file (no merging)
             video_path, audio_path = download_video_audio_separately(url, download_path)
-            
+
             if audio_path and os.path.exists(audio_path):
                 downloaded_file_path = audio_path
                 is_audio_download = True
             elif video_path:
                 downloaded_file_path = video_path
-            
+
             download_type = "video and separate audio"
 
         if not downloaded_file_path or not os.path.exists(downloaded_file_path):
@@ -473,7 +485,7 @@ def handle_download_error(error):
     """Handle yt-dlp download errors with helpful messages"""
     error_message = str(error)
     print("\nDownload Error:", error_message)
-    
+
     if "Requested format is not available" in error_message:
         print("\nTroubleshooting tips:")
         print("- Try using option 2 (Audio only) which often has better compatibility")
@@ -500,7 +512,7 @@ def handle_download_error(error):
         print("- Verify that the YouTube URL is valid and accessible in your browser")
         print("- Try using a different download option")
         print("- Update yt-dlp to the latest version with: pip install -U yt-dlp")
-        
+
     print("\nFor technical support, please provide the following error details:")
     print(f"Error: {error_message}")
 
@@ -511,7 +523,7 @@ def handle_filesystem_error(error):
     print("- Check if the download directory exists and you have permission to write to it")
     print("- Try specifying a different download location")
     print("- Make sure you have sufficient disk space")
-    
+
     print("\nFor technical support, please provide the following error details:")
     print(f"Error: {str(error)}")
 
@@ -519,23 +531,20 @@ def handle_generic_error(error):
     """Handle generic errors"""
     error_message = str(error)
     print("\nAn unexpected error occurred:", error_message)
-    
+
     print("\nTroubleshooting tips:")
     print("- Try restarting the application")
     print("- Check if FFmpeg is installed correctly (required for audio extraction)")
     print("- Update all dependencies with: pip install -r requirements.txt")
-    
+
     print("\nFor technical support, please provide the following error details:")
     print(f"Error: {error_message}")
 
 if __name__ == "__main__":
-    print("YouTube Video & Audio Downloader with Whisper Transcription")
-    print("======================================================")
-    print("Features:")
-    print("- Download videos in MP4 format")
-    print("- Extract audio as separate MP3 files")
-    print("- Download both video and audio as separate files (no merging)")
-    print("- Transcribe audio using OpenAI's Whisper model")
-    print("- Save transcriptions as markdown files")
-    print("======================================================")
-    handle_download()
+    print("This file has been deprecated. Please use main.py instead.")
+    print("Running main.py for you...")
+    try:
+        import main
+        main.main()
+    except ImportError:
+        print("Error: Could not import main.py. Please make sure it exists in the same directory.")

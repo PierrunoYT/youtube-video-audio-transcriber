@@ -37,7 +37,7 @@ A Python application that allows you to download videos and audio from YouTube, 
 
 1. Run the script:
    ```
-   python youtube_downloader.py
+   python main.py
    ```
 
 2. Follow the prompts:
@@ -56,14 +56,21 @@ A Python application that allows you to download videos and audio from YouTube, 
    - If not set as an environment variable, you'll be prompted to enter it
    - Transcription will be saved as a text file in the same location as the audio
 
+## Project Structure
+
+The application is organized into several modules:
+
+- `main.py` - Entry point and user interface
+- `downloader.py` - Functions for downloading videos and audio
+- `transcriber.py` - Functions for transcribing audio
+- `utils.py` - Utility functions for URL validation and error handling
+- `config.py` - Configuration and environment variable handling
+
 ## Environment Variables
 
 This application uses environment variables for configuration. You can set these in a `.env` file in the project directory:
 
-1. Copy `.env.example` to `.env`:
-   ```
-   cp .env.example .env
-   ```
+1. Create a `.env` file in the project directory:
 
 2. Edit the `.env` file and add your configuration:
 
