@@ -73,16 +73,30 @@ def transcribe_audio_with_gemini(audio_file_path):
         prompt = "Generate a complete and accurate transcript of this audio file."
 
         # Create content with the audio data
-        contents = {
+        # First, encode the audio bytes to base64
+        import base64
+        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+
+        # Create the content structure according to the API requirements
+        content = {
             "contents": [
-                {"parts": [{"text": prompt}]},
-                {"parts": [{"inline_data": {"mime_type": mime_type, "data": audio_bytes}}]}
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": audio_base64
+                            }
+                        }
+                    ]
+                }
             ]
         }
 
         # Generate the transcript
         print("Sending file to Google Gemini for transcription...")
-        response = model.generate_content(contents)
+        response = model.generate_content(content)
 
         if not response or not response.text:
             print("Error: No response from Gemini API.")
@@ -220,16 +234,30 @@ def ask_question_about_audio(audio_file_path, question):
         prompt = f"Listen to this audio and answer the following question: {question}"
 
         # Create content with the audio data
-        contents = {
+        # First, encode the audio bytes to base64
+        import base64
+        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+
+        # Create the content structure according to the API requirements
+        content = {
             "contents": [
-                {"parts": [{"text": prompt}]},
-                {"parts": [{"inline_data": {"mime_type": mime_type, "data": audio_bytes}}]}
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": audio_base64
+                            }
+                        }
+                    ]
+                }
             ]
         }
 
         # Generate the answer
         print("\nProcessing audio and generating answer using Google's Gemini API...")
-        response = model.generate_content(contents)
+        response = model.generate_content(content)
 
         if not response or not response.text:
             print("Error: No response from Gemini API.")
@@ -463,12 +491,22 @@ def chat_with_content(content_path, content_type="transcript"):
             if content_type == "transcript":
                 # Generate response
                 print("\nAI is thinking...")
-                response = model.generate_content(
-                    contents=user_input,
-                    generation_config={
+
+                # Create the content structure according to the API requirements
+                content = {
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": user_input}
+                            ]
+                        }
+                    ],
+                    "generation_config": {
                         "system_instruction": system_instruction
                     }
-                )
+                }
+
+                response = model.generate_content(content)
 
                 if not response or not response.text:
                     print("Error: No response from Gemini API.")
