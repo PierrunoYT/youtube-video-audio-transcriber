@@ -8,15 +8,10 @@ from utils import get_api_key_securely
 
 # Import Gemini API library
 try:
-    import google.genai as genai
+    import google.generativeai as genai
     GEMINI_AVAILABLE = True
 except ImportError:
-    try:
-        # Try the older library as fallback
-        import google.generativeai as genai
-        GEMINI_AVAILABLE = True
-    except ImportError:
-        GEMINI_AVAILABLE = False
+    GEMINI_AVAILABLE = False
 
 def check_gemini_availability():
     """Check if Gemini API is available and properly configured"""
@@ -33,15 +28,8 @@ def check_gemini_availability():
             print("\nNo Google Gemini API key provided. Gemini features will not be available.")
             return False
 
-        # Configure the Gemini API client
-        try:
-            # Try the new SDK configuration method
-            # Store the client globally so it can be used throughout the module
-            global gemini_client
-            gemini_client = genai.Client(api_key=api_key)
-        except AttributeError:
-            # Fall back to the older library configuration method
-            genai.configure(api_key=api_key)
+        # Configure the Gemini API with the API key
+        genai.configure(api_key=api_key)
         return True
     except Exception as e:
         print(f"\nError configuring Gemini API: {str(e)}")
@@ -115,10 +103,7 @@ def transcribe_large_audio_with_gemini(audio_file_path):
             return None
 
         # Create a client instance
-        if 'gemini_client' in globals():
-            client = gemini_client
-        else:
-            client = genai.Client()
+        client = genai.Client()
 
         # Upload the file
         print("Uploading audio file to Google Gemini...")
@@ -265,10 +250,7 @@ def ask_question_about_large_audio(audio_file_path, question):
             return None
 
         # Create a client instance
-        if 'gemini_client' in globals():
-            client = gemini_client
-        else:
-            client = genai.Client()
+        client = genai.Client()
 
         # Upload the file
         print("Uploading audio file to Google Gemini...")
