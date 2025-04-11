@@ -63,22 +63,19 @@ def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
         audio_bytes = f.read()
     mime_type = _get_mime_type(audio_file_path)
     audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-    content = {
-        "contents": [
+    
+    # Use the updated API format
+    response = model.generate_content(
+        [
+            {"text": "Generate a complete and accurate transcript."},
             {
-                "parts": [
-                    {"text": "Generate a complete and accurate transcript."},
-                    {
-                        "inline_data": {
-                            "mime_type": mime_type,
-                            "data": audio_base64
-                        }
-                    }
-                ]
+                "inline_data": {
+                    "mime_type": mime_type,
+                    "data": audio_base64
+                }
             }
         ]
-    }
-    response = model.generate_content(content)
+    )
     if not response or not response.text:
         raise APIError("No response from Gemini API.")
     return response.text
