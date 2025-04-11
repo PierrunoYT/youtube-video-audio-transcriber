@@ -102,7 +102,7 @@ def find_downloaded_file(expected_path, download_path):
     base_dir = Path(download_path or os.getcwd())
 
     if expected_file.exists():
-        logging.info(f"Found expected file: {expected_path}")
+        logging.info(f"Found expected file: {expected_file}")
         return str(expected_file)
 
     # Try to find a file with the same stem and a supported extension
@@ -115,10 +115,11 @@ def find_downloaded_file(expected_path, download_path):
     # If still not found, try to find the most recently modified file
     # within a reasonable timeframe (e.g., last 5 minutes).
     recent_files = []
+    current_time = time.time()
     for file in base_dir.glob('*'):
         if file.is_file() and file.suffix.lower() in MEDIA_EXTENSIONS:
             modified_time = file.stat().st_mtime
-            if time.time() - modified_time < 300:  # 5 minutes
+            if current_time - modified_time < 300:  # 5 minutes
                 recent_files.append((file, modified_time))
 
     if recent_files:
@@ -126,7 +127,7 @@ def find_downloaded_file(expected_path, download_path):
         logging.info(f"Found most recent file: {most_recent_file}")
         return str(most_recent_file)
 
-    logging.warning(f"No downloaded file found matching {expected_path} in {download_path}")
+    logging.warning(f"No downloaded file found matching {expected_file} in {base_dir}")
     return None
 
 

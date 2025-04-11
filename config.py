@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# Gemini model constants
+GEMINI_MODEL_FLASH = 'gemini-1.5-flash'
+GEMINI_MODEL_PRO = 'gemini-1.5-pro'
+
 def load_config():
     """Load configuration settings from environment variables."""
 

@@ -9,6 +9,7 @@ import yt_dlp
 import threading
 import queue
 import logging
+from pathlib import Path
 from utils import find_downloaded_file, DownloadError
 from utils import logging  # Use the logging configuration from utils
 
@@ -81,7 +82,8 @@ def download_media(url, ydl_opts, download_type, download_path):
 
             filename = ydl.prepare_filename(info)
             if download_type == "audio":
-                filename = os.path.splitext(filename)[0] + ".mp3"
+                file_path = Path(filename)
+                filename = str(file_path.with_suffix(".mp3"))
 
             print(f"\nStarting {download_type} download...")
             print(f"File will be saved as: {filename}")
@@ -112,27 +114,34 @@ def download_media(url, ydl_opts, download_type, download_path):
     except Exception as e:
         logging.exception("Error during media download")
         print(f"\nAn unexpected error occurred during download: {str(e)}")
-        raise  # Re-raise the exception
+        from utils import GenericError
+        raise GenericError(f"Download failed: {str(e)}")  # Raise a more specific exception
 
 def _log_and_print_download_status(download_type, downloaded_file_path):
     """Log and print download completion status."""
 
-    if downloaded_file_path and os.path.exists(downloaded_file_path):
-        file_size = os.path.getsize(downloaded_file_path) / (1024 * 1024)  # Size in MB
-        print(f"\n{download_type.capitalize()} download completed successfully!")
-        print(f"File saved at: {downloaded_file_path} (Size: {file_size:.2f} MB)")
-        logging.info(f"Download successful: {downloaded_file_path} (Size: {file_size:.2f} MB)")
-    else:
-        logging.warning(f"Expected file not found after download")
-        print(f"\nWARNING: Expected file not found after download.")
+    if downloaded_file_path:
+        file_path = Path(downloaded_file_path)
+        if file_path.exists():
+            file_size = file_path.stat().st_size / (1024 * 1024)  # Size in MB
+            print(f"\n{download_type.capitalize()} download completed successfully!")
+            print(f"File saved at: {file_path} (Size: {file_size:.2f} MB)")
+            logging.info(f"Download successful: {file_path} (Size: {file_size:.2f} MB)")
+            return
+    
+    logging.warning(f"Expected file not found after download")
+    print(f"\nWARNING: Expected file not found after download.")
 
 def download_video_audio_separately(url, download_path):
     """Download video and audio as separate files."""
 
     try:
+        from pathlib import Path
+        download_dir = Path(download_path)
+        
         video_opts = {
             'format': 'bestvideo[ext=mp4]/best[ext=mp4]/best',
-            'outtmpl': os.path.join(download_path, '%(title)s_video.%(ext)s'),
+            'outtmpl': str(download_dir / '%(title)s_video.%(ext)s'),
             'verbose': False,
         }
         print("\nDownloading video file first...")
@@ -145,7 +154,7 @@ def download_video_audio_separately(url, download_path):
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'outtmpl': os.path.join(download_path, '%(title)s_audio.%(ext)s'),
+            'outtmpl': str(download_dir / '%(title)s_audio.%(ext)s'),
             'verbose': False,
         }
         print("\nDownloading audio file second...")
@@ -154,8 +163,10 @@ def download_video_audio_separately(url, download_path):
         return video_path, audio_path
 
     except DownloadError as e:
+        logging.error(f"Download error during separate download: {str(e)}")
         raise e
     except Exception as e:
         logging.exception("Error downloading video/audio separately")
         print(f"\nAn unexpected error occurred during separate download: {str(e)}")
-        raise
+        from utils import GenericError
+        raise GenericError(f"Separate download failed: {str(e)}")

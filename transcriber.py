@@ -33,8 +33,9 @@ def _transcribe_with_openai(audio_file_path):
 def _save_transcript_to_file(audio_file_path, transcript_text):
     """Save transcript to a markdown file."""
 
-    video_title = Path(audio_file_path).stem
-    transcript_path = audio_file_path.replace(Path(audio_file_path).suffix, "_transcript.md")
+    audio_path = Path(audio_file_path)
+    video_title = audio_path.stem
+    transcript_path = audio_path.with_suffix("_transcript.md")
     try:
         with open(transcript_path, "w", encoding="utf-8") as f:
             f.write(f"# Transcript: {video_title}\n\n")
@@ -43,7 +44,7 @@ def _save_transcript_to_file(audio_file_path, transcript_text):
                 f.write(f"{paragraph}.")
                 if i < len(paragraphs) - 1:
                     f.write("\n\n")  # Add spacing between paragraphs
-        return transcript_path
+        return str(transcript_path)
     except (FileNotFoundError, PermissionError) as e:
         raise FilesystemError(f"Error saving transcript: {str(e)}")
 

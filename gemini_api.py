@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import base64
 from utils import get_api_key_securely, logging, APIError, FilesystemError
+from config import GEMINI_MODEL_FLASH, GEMINI_MODEL_PRO
 
 # Import Gemini API library
 try:
@@ -18,11 +19,20 @@ except ImportError:
 
 
 def _check_gemini_availability():
-    """Check if Gemini API is available and configured."""
+    """
+    Check if Gemini API is available and configured.
+    
+    Returns:
+        bool: True if Gemini API is available and configured properly
+        
+    Raises:
+        ImportError: If the Gemini API library is not installed
+        APIError: If no valid API key is provided
+    """
 
     if not GEMINI_AVAILABLE:
         raise ImportError("Google Gemini API library is not installed. "
-                        "Install with: pip install google-genai")
+                        "Install with: pip install google-generativeai")
     api_key = get_api_key_securely("gemini")
     if not api_key:
         raise APIError("No Google Gemini API key provided.")
@@ -30,8 +40,20 @@ def _check_gemini_availability():
     return True
 
 
-def _transcribe_audio_gemini(audio_file_path, model_name='gemini-1.5-flash'):
-    """Transcribe audio using Gemini."""
+def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
+    """
+    Transcribe audio using Gemini.
+    
+    Args:
+        audio_file_path (str): Path to the audio file to transcribe
+        model_name (str, optional): Name of the Gemini model to use. Defaults to GEMINI_MODEL_FLASH.
+        
+    Returns:
+        str: The transcribed text
+        
+    Raises:
+        APIError: If no response is received from Gemini API
+    """
 
     if os.path.getsize(audio_file_path) / (1024 * 1024) > 20:
         return _transcribe_large_audio_gemini(audio_file_path, model_name)
@@ -62,8 +84,20 @@ def _transcribe_audio_gemini(audio_file_path, model_name='gemini-1.5-flash'):
     return response.text
 
 
-def _transcribe_large_audio_gemini(audio_file_path, model_name='gemini-1.5-flash'):
-    """Transcribe large audio files using Gemini's file upload API."""
+def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
+    """
+    Transcribe large audio files using Gemini's file upload API.
+    
+    Args:
+        audio_file_path (str): Path to the large audio file to transcribe
+        model_name (str, optional): Name of the Gemini model to use. Defaults to GEMINI_MODEL_FLASH.
+        
+    Returns:
+        str: The transcribed text
+        
+    Raises:
+        APIError: If no response is received from Gemini API
+    """
 
     client = genai.GenerativeModel(model_name)  # Changed from genai.Client()
     with open(audio_file_path, 'rb') as f:
@@ -80,7 +114,18 @@ def _transcribe_large_audio_gemini(audio_file_path, model_name='gemini-1.5-flash
 
 
 def transcribe_audio_with_gemini(audio_file_path):
-    """Transcribe audio using Google's Gemini API and save as markdown."""
+    """
+    Transcribe audio using Google's Gemini API and save as markdown.
+    
+    Args:
+        audio_file_path (str): Path to the audio file to transcribe
+        
+    Returns:
+        str: Path to the saved transcript file, or None if transcription failed
+        
+    Raises:
+        FileNotFoundError: If the audio file does not exist
+    """
 
     try:
         _check_gemini_availability()
@@ -100,7 +145,20 @@ def transcribe_audio_with_gemini(audio_file_path):
 
 
 def _save_transcript(audio_file_path, transcript_text, service="gemini"):
-    """Save transcript to a file."""
+    """
+    Save transcript to a file.
+    
+    Args:
+        audio_file_path (str): Path to the original audio file
+        transcript_text (str): The transcribed text content to save
+        service (str, optional): Service name to include in the output filename. Defaults to "gemini".
+        
+    Returns:
+        str: Path to the saved transcript file
+        
+    Raises:
+        FilesystemError: If there's an error saving the transcript to a file
+    """
 
     try:
         audio_path = Path(audio_file_path)
@@ -115,23 +173,40 @@ def _save_transcript(audio_file_path, transcript_text, service="gemini"):
 
 
 def _get_mime_type(file_path):
-    """Determine MIME type based on file extension."""
-
-    mime_types = {
-        '.mp3': 'audio/mpeg',  # Changed from 'audio/mp3'
-        '.wav': 'audio/wav',
-        '.m4a': 'audio/mp4',  # Changed from 'audio/m4a'
-        '.aac': 'audio/aac',
-        '.ogg': 'audio/ogg',
-        '.flac': 'audio/flac',
-        '.aiff': 'audio/aiff',
-    }
-    ext = os.path.splitext(file_path)[1].lower()
-    return mime_types.get(ext, 'audio/mpeg')  # Default to audio/mpeg
+    """
+    Determine MIME type based on file extension using Python's mimetypes module.
+    
+    Args:
+        file_path (str): Path to the file
+        
+    Returns:
+        str: MIME type corresponding to the file extension, defaults to 'audio/mpeg' if unknown
+    """
+    import mimetypes
+    
+    # Initialize mimetypes if not already done
+    if not mimetypes.inited:
+        mimetypes.init()
+    
+    # Add common audio MIME types that might be missing
+    mimetypes.add_type('audio/mpeg', '.mp3')
+    mimetypes.add_type('audio/mp4', '.m4a')
+    mimetypes.add_type('audio/aac', '.aac')
+    mimetypes.add_type('audio/ogg', '.ogg')
+    mimetypes.add_type('audio/flac', '.flac')
+    mimetypes.add_type('audio/aiff', '.aiff')
+    
+    mime_type, _ = mimetypes.guess_type(file_path)
+    return mime_type or 'audio/mpeg'  # Default to audio/mpeg if not detected
 
 
 def handle_gemini_error(error):
-    """Handle Gemini API errors with logging and user-friendly messages."""
+    """
+    Handle Gemini API errors with logging and user-friendly messages.
+    
+    Args:
+        error (Exception): The error that occurred
+    """
 
     error_message = str(error)
     logging.error(f"Gemini API Error: {error_message}")
@@ -175,7 +250,18 @@ def handle_gemini_error(error):
 
 
 def chat_with_content(content_path, content_type="transcript"):
-    """Start an interactive chat session with content using Gemini."""
+    """
+    Start an interactive chat session with content using Gemini.
+    
+    Args:
+        content_path (str): Path to the content file (transcript or audio)
+        content_type (str, optional): Type of content ('transcript' or 'audio'). Defaults to "transcript".
+        
+    Raises:
+        FileNotFoundError: If the content file does not exist
+        ValueError: If an unsupported content type is provided
+        APIError: If no response is received from Gemini API
+    """
 
     try:
         _check_gemini_availability()
@@ -185,7 +271,7 @@ def chat_with_content(content_path, content_type="transcript"):
         if content_type not in ["transcript", "audio"]:
             raise ValueError(f"Unsupported content type: {content_type}")
 
-        model_name = 'gemini-1.5-pro' if content_type == "transcript" else 'gemini-1.5-flash'
+        model_name = GEMINI_MODEL_PRO if content_type == "transcript" else GEMINI_MODEL_FLASH
         model = genai.GenerativeModel(model_name)
         chat = model.start_chat()  # Initialize chat session
 
@@ -297,7 +383,20 @@ def _handle_post_transcription_gemini_options(audio_file_path, transcript_path):
 
 
 def ask_question_about_transcript(transcript_path, question):
-    """Ask a question about a transcript using Google's Gemini API"""
+    """
+    Ask a question about a transcript using Google's Gemini API.
+    
+    Args:
+        transcript_path (str): Path to the transcript file
+        question (str): The question to ask about the transcript
+        
+    Returns:
+        str: The answer text from Gemini, or None if an error occurred
+        
+    Raises:
+        FileNotFoundError: If the transcript file does not exist
+        APIError: If no response is received from Gemini API
+    """
     try:
         _check_gemini_availability()
         if not os.path.exists(transcript_path):
@@ -306,7 +405,7 @@ def ask_question_about_transcript(transcript_path, question):
         with open(transcript_path, 'r', encoding='utf-8') as f:
             transcript_text = f.read()
 
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel(GEMINI_MODEL_FLASH)
 
         prompt = f"""
         Based on the following transcript, please answer this question:
@@ -338,7 +437,19 @@ def ask_question_about_transcript(transcript_path, question):
 
 
 def summarize_transcript(transcript_path):
-    """Summarize a transcript using Google's Gemini API"""
+    """
+    Summarize a transcript using Google's Gemini API.
+    
+    Args:
+        transcript_path (str): Path to the transcript file
+        
+    Returns:
+        str: Path to the saved summary file, or None if summarization failed
+        
+    Raises:
+        FileNotFoundError: If the transcript file does not exist
+        APIError: If no response is received from Gemini API
+    """
     try:
         _check_gemini_availability()
         if not os.path.exists(transcript_path):
@@ -347,7 +458,7 @@ def summarize_transcript(transcript_path):
         with open(transcript_path, 'r', encoding='utf-8') as f:
             transcript_text = f.read()
 
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel(GEMINI_MODEL_FLASH)
 
         prompt = f"""
         Please provide a comprehensive summary of the following transcript:

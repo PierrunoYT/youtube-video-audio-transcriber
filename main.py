@@ -5,6 +5,7 @@ Handles user interaction and orchestrates the download and transcription process
 
 import os
 import yt_dlp
+from pathlib import Path
 from config import load_config
 from utils import validate_url, handle_download_error, handle_filesystem_error, handle_generic_error
 from downloader import list_formats, download_media, download_video_audio_separately
@@ -18,13 +19,14 @@ def _get_user_input(prompt, default=None):
 
 def _validate_and_create_dir(path):
     """Validate if a directory exists, and create it if the user agrees."""
-
-    if not os.path.exists(path):
-        create_dir = _get_user_input(f"Directory {path} doesn't exist. Create it? (y/n): ").lower()
+    
+    dir_path = Path(path)
+    if not dir_path.exists():
+        create_dir = _get_user_input(f"Directory {dir_path} doesn't exist. Create it? (y/n): ").lower()
         if create_dir == 'y':
             try:
-                os.makedirs(path, exist_ok=True)
-                print(f"Created directory: {path}")
+                dir_path.mkdir(parents=True, exist_ok=True)
+                print(f"Created directory: {dir_path}")
                 return True
             except Exception as e:
                 print(f"Error creating directory: {str(e)}")
@@ -40,9 +42,10 @@ def _handle_custom_format_download(url, download_path):
     format_code = _get_user_input("\nEnter the format code (e.g., 137+140, 22, etc.): ")
     extract_audio = _get_user_input("Do you want to extract audio as MP3? (y/n): ").lower() in ['y', 'yes']
 
+    download_dir = Path(download_path)
     ydl_opts = {
         'format': format_code,
-        'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+        'outtmpl': str(download_dir / '%(title)s.%(ext)s'),
         'verbose': False,
     }
 
@@ -63,8 +66,10 @@ def _handle_custom_format_download(url, download_path):
 
     downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
 
-    if downloaded_file_path and is_audio_download and os.path.exists(downloaded_file_path):
-        handle_transcription_option(downloaded_file_path)
+    if downloaded_file_path and is_audio_download:
+        file_path = Path(downloaded_file_path)
+        if file_path.exists():
+            handle_transcription_option(downloaded_file_path)
 
 def _handle_standard_download(url, download_path, choice):
     """Handle standard download options (video, audio, both)."""
@@ -72,11 +77,12 @@ def _handle_standard_download(url, download_path, choice):
     download_type = "content"
     is_audio_download = False
     downloaded_file_path = None
+    download_dir = Path(download_path)
 
     if choice == "1":  # Video only (MP4)
         ydl_opts = {
             'format': 'bestvideo[ext=mp4]/best[ext=mp4]/best',
-            'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+            'outtmpl': str(download_dir / '%(title)s.%(ext)s'),
             'verbose': False,
         }
         download_type = "video"
@@ -90,7 +96,7 @@ def _handle_standard_download(url, download_path, choice):
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+            'outtmpl': str(download_dir / '%(title)s.%(ext)s'),
             'verbose': False,
         }
         download_type = "audio"
@@ -99,15 +105,19 @@ def _handle_standard_download(url, download_path, choice):
 
     elif choice == "3":  # Video and separate audio file (no merging)
         video_path, audio_path = download_video_audio_separately(url, download_path)
-        if audio_path and os.path.exists(audio_path):
-            downloaded_file_path = audio_path
-            is_audio_download = True
+        if audio_path:
+            audio_file = Path(audio_path)
+            if audio_file.exists():
+                downloaded_file_path = audio_path
+                is_audio_download = True
         elif video_path:
             downloaded_file_path = video_path
         download_type = "video and separate audio"
 
-    if downloaded_file_path and os.path.exists(downloaded_file_path) and is_audio_download:
-        handle_transcription_option(downloaded_file_path)
+    if downloaded_file_path and is_audio_download:
+        file_path = Path(downloaded_file_path)
+        if file_path.exists():
+            handle_transcription_option(downloaded_file_path)
 
 def handle_download():
     """Main function to handle the download process."""
