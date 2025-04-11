@@ -84,6 +84,8 @@ def _handle_standard_download(url, download_path, choice):
             'format': 'bestvideo[ext=mp4]/best[ext=mp4]/best',
             'outtmpl': str(download_dir / '%(title)s.%(ext)s'),
             'verbose': False,
+            'ignoreerrors': True,  # Skip unavailable videos
+            'no_warnings': False,  # Show warnings
         }
         download_type = "video"
         downloaded_file_path = download_media(url, ydl_opts, download_type, download_path)
@@ -98,6 +100,8 @@ def _handle_standard_download(url, download_path, choice):
             }],
             'outtmpl': str(download_dir / '%(title)s.%(ext)s'),
             'verbose': False,
+            'ignoreerrors': True,  # Skip unavailable videos
+            'no_warnings': False,  # Show warnings
         }
         download_type = "audio"
         is_audio_download = True

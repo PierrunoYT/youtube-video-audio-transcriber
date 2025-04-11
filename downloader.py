@@ -9,6 +9,7 @@ import yt_dlp
 import threading
 import queue
 import logging
+import json
 from pathlib import Path
 from utils import find_downloaded_file, DownloadError
 from utils import logging  # Use the logging configuration from utils
@@ -60,6 +61,10 @@ def _download_with_progress(ydl, url, download_queue):
     try:
         ydl.download([url])
         download_queue.put(("success", None))
+    except json.JSONDecodeError as e:
+        # Handle JSON parsing error specifically
+        logging.error(f"JSON parsing error during download: {str(e)}")
+        download_queue.put(("error", f"Error parsing YouTube response. Try another format or video."))
     except Exception as e:
         download_queue.put(("error", str(e)))
 
@@ -95,14 +100,26 @@ def download_media(url, ydl_opts, download_type, download_path):
 
             # Wait for download to complete and show progress
             print("Downloading", end="")
-            while download_thread.is_alive():
+            timeout = 300  # 5 minutes timeout
+            elapsed = 0
+            interval = 0.5
+            while download_thread.is_alive() and elapsed < timeout:
                 print(".", end="", flush=True)
-                time.sleep(0.5)
+                time.sleep(interval)
+                elapsed += interval
             print()
-
-            status, error = download_queue.get()
-            if status == "error":
-                raise DownloadError(error)
+            
+            if download_thread.is_alive():
+                # If thread is still running after timeout
+                print("\nDownload is taking too long, you may want to cancel and try another format.")
+                
+            try:
+                status, error = download_queue.get(timeout=5)  # 5 second timeout for getting result
+                if status == "error":
+                    raise DownloadError(error)
+            except queue.Empty:
+                # Handle case where queue is empty (no result returned)
+                raise DownloadError("Download failed: No response from download thread")
 
             downloaded_file_path = find_downloaded_file(filename, download_path)
             _log_and_print_download_status(download_type, downloaded_file_path)
@@ -143,6 +160,8 @@ def download_video_audio_separately(url, download_path):
             'format': 'bestvideo[ext=mp4]/best[ext=mp4]/best',
             'outtmpl': str(download_dir / '%(title)s_video.%(ext)s'),
             'verbose': False,
+            'ignoreerrors': True,  # Skip unavailable videos
+            'no_warnings': False,  # Show warnings
         }
         print("\nDownloading video file first...")
         video_path = download_media(url, video_opts, "video", download_path)
@@ -156,6 +175,8 @@ def download_video_audio_separately(url, download_path):
             }],
             'outtmpl': str(download_dir / '%(title)s_audio.%(ext)s'),
             'verbose': False,
+            'ignoreerrors': True,  # Skip unavailable videos
+            'no_warnings': False,  # Show warnings
         }
         print("\nDownloading audio file second...")
         audio_path = download_media(url, audio_opts, "audio", download_path)
