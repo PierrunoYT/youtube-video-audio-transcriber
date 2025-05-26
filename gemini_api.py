@@ -50,25 +50,38 @@ def _check_gemini_availability():
     if not api_key:
         raise APIError("No Google Gemini API key provided.")
     
-    # Validate API key format (Google API keys typically follow a pattern)
-    # This is a basic check - Google's keys usually start with "AI" and are ~40 chars
-    if not isinstance(api_key, str) or len(api_key) < 30 or not api_key.startswith("AI"):
-        raise APIError("Invalid Google Gemini API key format. Keys typically start with 'AI' and are ~40 characters long.")
+    # Basic format validation (Google API keys typically follow a pattern)
+    if not isinstance(api_key, str) or len(api_key) < 30:
+        raise APIError("Invalid Google Gemini API key format. Keys should be at least 30 characters long.")
     
     # Configure the API with the validated key
     genai.configure(api_key=api_key)
     
-    # Perform a minimal API test to verify connectivity
+    # Perform actual API test to verify connectivity and key validity
     try:
-        # Just initialize model without making an actual API call
-        # This helps verify the SDK is properly configured
+        print("Validating Gemini API key...")
         model = genai.GenerativeModel(GEMINI_MODEL_FLASH)
         
-        # If we get here, basic configuration appears to be working
-        return True
-    except Exception as e:
-        raise APIError(f"Gemini API configuration error: {str(e)}")
+        # Make a minimal test request to verify the key works
+        test_response = model.generate_content("Hello")
         
+        if not test_response or not test_response.text:
+            raise APIError("Gemini API key validation failed: Empty response from test request")
+            
+        print("✅ Gemini API key validated successfully")
+        return True
+        
+    except Exception as e:
+        error_msg = str(e)
+        if "API_KEY_INVALID" in error_msg or "invalid" in error_msg.lower():
+            raise APIError("Invalid Gemini API key. Please check your API key and try again.")
+        elif "quota" in error_msg.lower() or "limit" in error_msg.lower():
+            raise APIError("Gemini API quota exceeded. Please check your usage limits.")
+        elif "permission" in error_msg.lower() or "unauthorized" in error_msg.lower():
+            raise APIError("Gemini API key lacks necessary permissions. Please check your API key permissions.")
+        else:
+            raise APIError(f"Gemini API validation error: {error_msg}")
+
     return True
 
 

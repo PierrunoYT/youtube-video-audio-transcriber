@@ -9,7 +9,7 @@ import logging
 from urllib.parse import urlparse
 from getpass import getpass
 from pathlib import Path
-from config import load_config
+from config import load_config, ConfigurationError
 # Removed magic library dependency
 
 # Initialize logging (you can customize this)
@@ -37,6 +37,16 @@ class APIError(Exception):
 
 class GenericError(Exception):
     """Custom exception for generic errors"""
+    pass
+
+
+class ConfigurationError(Exception):
+    """Custom exception for configuration-related errors"""
+    pass
+
+
+class ValidationError(Exception):
+    """Custom exception for validation errors"""
     pass
 
 
@@ -205,3 +215,43 @@ def handle_generic_error(error):
     print("- Check if FFmpeg is installed correctly (required for audio extraction)")
     print("- Update all dependencies with: pip install -r requirements.txt")
     raise GenericError(error_message)
+
+
+def handle_api_error(error, service_name="API"):
+    """
+    Standardized API error handler for all services.
+    
+    Args:
+        error (Exception): The error that occurred
+        service_name (str): Name of the service (e.g., "OpenAI", "Gemini")
+    """
+    error_message = str(error)
+    error_type = type(error).__name__
+    
+    logging.error(f"{service_name} Error ({error_type}): {error_message}")
+    print(f"\n{service_name} Error ({error_type}):", error_message)
+    
+    # Common troubleshooting tips
+    print(f"\nTroubleshooting tips for {service_name}:")
+    print("- Check your internet connection")
+    print("- Verify your API key is valid and has necessary permissions")
+    print("- Check if you've exceeded your API usage limits")
+    print("- Try again later if the service is temporarily unavailable")
+
+
+def handle_validation_error(error, context=""):
+    """
+    Standardized validation error handler.
+    
+    Args:
+        error (Exception): The validation error
+        context (str): Additional context about what was being validated
+    """
+    error_message = str(error)
+    logging.error(f"Validation Error{' in ' + context if context else ''}: {error_message}")
+    print(f"\nValidation Error{' in ' + context if context else ''}:", error_message)
+    
+    print("\nPlease check:")
+    print("- Input format and requirements")
+    print("- File paths and permissions")
+    print("- Configuration settings")

@@ -1,6 +1,6 @@
-yt-dlp>=2025.3.31
-openai>=1.3.0
-python-dotenv>=1.0.0
-google-generativeai>=0.3.0
-portalocker>=2.0.0
-psutil>=5.8.0
+yt-dlp>=2024.12.13,<2026.0.0
+openai>=1.3.0,<2.0.0
+python-dotenv>=1.0.0,<2.0.0
+google-generativeai>=0.3.0,<1.0.0
+portalocker>=2.0.0,<3.0.0
+psutil>=5.8.0,<6.0.0
