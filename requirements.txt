@@ -3,3 +3,4 @@ openai>=1.3.0
 python-dotenv>=1.0.0
 google-generativeai>=0.3.0
 portalocker>=2.0.0
+psutil>=5.8.0

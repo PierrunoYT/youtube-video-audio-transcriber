@@ -6,6 +6,7 @@ Handles audio processing, transcription, and interactions using Google's Gemini 
 import os
 from pathlib import Path
 import base64
+import psutil  # For memory monitoring
 from utils import get_api_key_securely, logging, APIError, FilesystemError
 from config import GEMINI_MODEL_FLASH, GEMINI_MODEL_PRO
 
@@ -71,9 +72,29 @@ def _check_gemini_availability():
     return True
 
 
+def _check_available_memory():
+    """
+    Check available system memory and return in MB.
+    
+    Returns:
+        float: Available memory in MB
+    """
+    try:
+        memory = psutil.virtual_memory()
+        available_mb = memory.available / (1024 * 1024)
+        return available_mb
+    except ImportError:
+        # If psutil is not available, assume we have at least 1GB available
+        logging.warning("psutil not available - cannot monitor memory usage")
+        return 1024.0
+    except Exception as e:
+        logging.warning(f"Error checking memory: {e}")
+        return 1024.0
+
+
 def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
     """
-    Transcribe audio using Gemini.
+    Transcribe audio using Gemini with memory-efficient file handling.
     
     Args:
         audio_file_path (str): Path to the audio file to transcribe
@@ -85,20 +106,40 @@ def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
     Raises:
         APIError: If no response is received from Gemini API
     """
-
+    file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+    
     # Check if the file is larger than 20MB
-    if os.path.getsize(audio_file_path) / (1024 * 1024) > 20:
+    if file_size_mb > 20:
         return _transcribe_large_audio_gemini(audio_file_path, model_name)
+
+    # Check available memory before loading file
+    available_memory = _check_available_memory()
+    estimated_memory_needed = file_size_mb * 3  # Base64 encoding roughly triples size
+    
+    if estimated_memory_needed > available_memory * 0.8:  # Use max 80% of available memory
+        logging.warning(f"File size ({file_size_mb:.1f}MB) may cause memory issues. Available: {available_memory:.1f}MB")
+        print(f"\nWarning: Large file may cause memory issues. Consider using a smaller file.")
+        
+        # Ask user if they want to proceed
+        proceed = input("Do you want to proceed anyway? (y/n): ").lower()
+        if proceed != 'y':
+            raise APIError("Transcription cancelled due to memory concerns.")
 
     try:
         model = genai.GenerativeModel(model_name)
         mime_type = _get_mime_type(audio_file_path)
         
-        # Read file in smaller chunks to avoid memory issues
+        # Read file with memory monitoring
+        print(f"Loading audio file ({file_size_mb:.1f}MB)...")
         with open(audio_file_path, 'rb') as f:
             audio_bytes = f.read()
             
+        # Monitor memory usage during base64 encoding
+        print("Encoding audio data...")
         audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        
+        # Clear the original bytes to free memory
+        del audio_bytes
         
         # Use the updated API format
         response = model.generate_content(
@@ -113,6 +154,9 @@ def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
             ]
         )
         
+        # Clear base64 data to free memory
+        del audio_base64
+        
         # Check for empty response and provide detailed error
         if not response:
             raise APIError("Empty response received from Gemini API")
@@ -122,6 +166,8 @@ def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
             
         return response.text
         
+    except MemoryError:
+        raise APIError(f"Memory error processing audio file ({file_size_mb:.1f}MB). File too large for available system memory.")
     except Exception as e:
         # Propagate original exception details
         if not isinstance(e, APIError):
@@ -129,24 +175,39 @@ def _transcribe_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH):
         raise
 
 
-def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH, chunk_size_mb=10):
+def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLASH, max_file_size_mb=100):
     """
-    Transcribe large audio files using Gemini's file upload API.
-    Uses chunking for large files to prevent memory issues.
+    Transcribe large audio files with proper memory management and file size limits.
     
     Args:
         audio_file_path (str): Path to the large audio file to transcribe
         model_name (str, optional): Name of the Gemini model to use. Defaults to GEMINI_MODEL_FLASH.
-        chunk_size_mb (int, optional): Size of chunks in MB when processing large files. Defaults to 10.
+        max_file_size_mb (int, optional): Maximum file size to process in MB. Defaults to 100.
         
     Returns:
         str: The transcribed text
         
     Raises:
-        APIError: If no response is received from Gemini API
+        APIError: If no response is received from Gemini API or file is too large
     """
     try:
         file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+        
+        # Check file size limits
+        if file_size_mb > max_file_size_mb:
+            raise APIError(f"File too large ({file_size_mb:.1f}MB). Maximum supported size is {max_file_size_mb}MB. "
+                          f"Please split the file into smaller segments.")
+        
+        # Check available memory
+        available_memory = _check_available_memory()
+        estimated_memory_needed = file_size_mb * 3  # Base64 encoding roughly triples size
+        
+        if estimated_memory_needed > available_memory * 0.6:  # Use max 60% for large files
+            raise APIError(f"Insufficient memory to process file ({file_size_mb:.1f}MB). "
+                          f"Estimated memory needed: {estimated_memory_needed:.1f}MB, "
+                          f"Available: {available_memory:.1f}MB. "
+                          f"Please close other applications or use a smaller file.")
+        
         client = genai.GenerativeModel(model_name)
         mime_type = _get_mime_type(audio_file_path)
         
@@ -154,31 +215,31 @@ def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLAS
         if file_size_mb > 50:
             logging.warning(f"Very large audio file: {file_size_mb:.1f}MB. Transcription may take a long time.")
             print(f"\nWarning: This is a very large audio file ({file_size_mb:.1f}MB). Transcription may take a long time.")
+            print(f"Available memory: {available_memory:.1f}MB")
+            print(f"Estimated memory needed: {estimated_memory_needed:.1f}MB")
         
-        # Read and process audio in chunks if necessary
-        if file_size_mb > chunk_size_mb:
-            # For extremely large files, we'll use chunking
-            print(f"\nProcessing large file in chunks to optimize memory usage...")
-            
-            # TODO: For future implementation - add actual chunking code here
-            # Current Gemini API doesn't support partial audio transcription
-            # This comment serves as a placeholder for future optimization
-            
-            # For now, we still need to load the whole file but with better error handling
-            with open(audio_file_path, 'rb') as f:
-                audio_bytes = f.read()
-        else:
-            # For files under the chunk size threshold
-            with open(audio_file_path, 'rb') as f:
-                audio_bytes = f.read()
+        # Read file with progress indication for large files
+        print(f"Loading large audio file ({file_size_mb:.1f}MB)...")
+        with open(audio_file_path, 'rb') as f:
+            audio_bytes = f.read()
         
+        print("Encoding large audio file...")
+        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        
+        # Clear original bytes to free memory
+        del audio_bytes
+        
+        print("Sending to Gemini API...")
         # Process the audio data
         response = client.generate_content(
             [
                 "Generate a complete and accurate transcript.",
-                {"inline_data": {"mime_type": mime_type, "data": base64.b64encode(audio_bytes).decode('utf-8')}}
+                {"inline_data": {"mime_type": mime_type, "data": audio_base64}}
             ]
         )
+        
+        # Clear base64 data to free memory
+        del audio_base64
         
         # Check for empty response with detailed error info
         if not response:
@@ -190,7 +251,7 @@ def _transcribe_large_audio_gemini(audio_file_path, model_name=GEMINI_MODEL_FLAS
         return response.text
         
     except MemoryError:
-        raise APIError("Memory error processing large audio file. File too large for available system memory.")
+        raise APIError(f"Memory error processing large audio file ({file_size_mb:.1f}MB). File too large for available system memory.")
     except Exception as e:
         # Propagate original exception details
         if not isinstance(e, APIError):
@@ -233,6 +294,14 @@ def transcribe_audio_with_gemini(audio_file_path):
             logging.error(error_msg)
             raise ValueError(error_msg)
 
+        # Check file size and provide user feedback
+        file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+        print(f"Audio file size: {file_size_mb:.1f}MB")
+        
+        # Check available memory
+        available_memory = _check_available_memory()
+        print(f"Available system memory: {available_memory:.1f}MB")
+        
         # Transcribe audio
         transcript_text = _transcribe_audio_gemini(audio_file_path)
         if not transcript_text:
