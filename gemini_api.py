@@ -17,6 +17,14 @@ try:
 except ImportError:
     GEMINI_AVAILABLE = False
 
+# Import cross-platform file locking
+try:
+    import portalocker
+    FILE_LOCKING_AVAILABLE = True
+except ImportError:
+    FILE_LOCKING_AVAILABLE = False
+    logging.warning("portalocker not available - file locking will be disabled")
+
 
 def _check_gemini_availability():
     """
@@ -270,7 +278,6 @@ def _save_transcript(audio_file_path, transcript_text, service="gemini"):
     Raises:
         FilesystemError: If there's an error saving the transcript to a file
     """
-    import fcntl  # File locking
     import tempfile  # For safe atomic writes
     
     transcript_path = None
@@ -290,15 +297,25 @@ def _save_transcript(audio_file_path, transcript_text, service="gemini"):
                                               encoding='utf-8',
                                               delete=False)
         
-        # Use a file lock to ensure exclusive write access
+        # Use cross-platform file locking if available
         try:
             # Write to temporary file
             with open(temp_file.name, 'w', encoding='utf-8') as f:
-                # Acquire exclusive lock
-                fcntl.flock(f, fcntl.LOCK_EX)
-                # Write content
-                f.write(transcript_text)
-                # Release lock (happens automatically when file is closed)
+                if FILE_LOCKING_AVAILABLE:
+                    # Acquire exclusive lock using portalocker (cross-platform)
+                    try:
+                        portalocker.lock(f, portalocker.LOCK_EX)
+                        # Write content
+                        f.write(transcript_text)
+                        # Release lock (happens automatically when file is closed)
+                    except Exception as lock_error:
+                        # If locking fails, continue without locking but log warning
+                        logging.warning(f"File locking failed, continuing without lock: {lock_error}")
+                        f.write(transcript_text)
+                else:
+                    # No locking available, write directly
+                    logging.info("File locking not available, writing without lock")
+                    f.write(transcript_text)
             
             # Atomic rename to target file (this is thread-safe)
             os.replace(temp_file.name, transcript_path)

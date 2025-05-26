@@ -41,3 +41,6 @@ env/
 *.m4a
 *.wav
 *_transcript.txt
+
+# Plan files
+IMPROVEMENT_PLAN.md
