@@ -861,12 +861,24 @@ def summarize_transcript(transcript_path):
         if not response or not response.text:
             raise APIError("No response from Gemini API.")
 
-        summary_path = transcript_path.replace('_transcript.txt', '_summary.txt')
+        # Generate summary path using Path operations to avoid string replacement issues
+        transcript_path_obj = Path(transcript_path)
+        # Remove '_transcript' suffix if present, then add '_summary'
+        if transcript_path_obj.stem.endswith('_transcript') or transcript_path_obj.stem.endswith('_gemini_transcript'):
+            # Extract the base name without the transcript suffix
+            base_stem = transcript_path_obj.stem.replace('_gemini_transcript', '').replace('_transcript', '')
+            summary_filename = f"{base_stem}_summary.txt"
+        else:
+            # If no transcript suffix found, just add _summary
+            summary_filename = f"{transcript_path_obj.stem}_summary.txt"
+        
+        summary_path = transcript_path_obj.parent / summary_filename
+        
         with open(summary_path, 'w', encoding='utf-8') as f:
             f.write(response.text)
 
         print(f"\nSummary saved to: {summary_path}")
-        return summary_path
+        return str(summary_path)
 
     except Exception as e:
         handle_gemini_error(e)

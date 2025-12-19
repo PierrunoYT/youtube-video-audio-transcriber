@@ -10,8 +10,6 @@ import threading
 import queue
 import logging
 import json
-import signal
-import sys
 from pathlib import Path
 from utils import find_downloaded_file, DownloadError
 from utils import logging  # Use the logging configuration from utils
@@ -80,28 +78,15 @@ def list_formats(url, timeout=DEFAULT_FORMAT_LIST_TIMEOUT):
         return False
 
 def _download_with_progress(ydl, url, download_queue, timeout_seconds):
-    """Helper function to download media in a thread with timeout handling."""
+    """Helper function to download media in a thread with timeout handling.
+    
+    Note: Timeout is handled by the calling thread that monitors this function's execution.
+    This approach works cross-platform (Windows, Unix, macOS) unlike signal-based timeouts.
+    """
     try:
-        # Set up signal handler for timeout (Unix-like systems)
-        def timeout_handler(signum, frame):
-            raise TimeoutError(f"Download timed out after {timeout_seconds} seconds")
-        
-        # Only set signal handler on Unix-like systems
-        if hasattr(signal, 'SIGALRM'):
-            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(timeout_seconds)
-        
-        try:
-            ydl.download([url])
-            download_queue.put(("success", None))
-        finally:
-            # Clean up signal handler
-            if hasattr(signal, 'SIGALRM'):
-                signal.alarm(0)  # Cancel the alarm
-                signal.signal(signal.SIGALRM, old_handler)  # Restore old handler
+        ydl.download([url])
+        download_queue.put(("success", None))
                 
-    except TimeoutError as e:
-        download_queue.put(("timeout", str(e)))
     except json.JSONDecodeError as e:
         # Handle JSON parsing error specifically
         logging.error(f"JSON parsing error during download: {str(e)}")

@@ -40,11 +40,6 @@ class GenericError(Exception):
     pass
 
 
-class ConfigurationError(Exception):
-    """Custom exception for configuration-related errors"""
-    pass
-
-
 class ValidationError(Exception):
     """Custom exception for validation errors"""
     pass
@@ -106,11 +101,20 @@ def get_api_key_securely(api_type="openai"):
 
 
 def find_downloaded_file(expected_path, download_path):
-    """Find downloaded file even if the expected path doesn't exist"""
+    """Find downloaded file even if the expected path doesn't exist.
+    
+    Args:
+        expected_path (str): The expected path to the downloaded file
+        download_path (str): The directory where files are downloaded
+        
+    Returns:
+        str: Path to the found file, or None if not found
+    """
 
     expected_file = Path(expected_path)
     base_dir = Path(download_path or os.getcwd())
 
+    # First, check if the exact expected path exists
     if expected_file.exists():
         logging.info(f"Found expected file: {expected_file}")
         return str(expected_file)
@@ -122,19 +126,41 @@ def find_downloaded_file(expected_path, download_path):
             logging.info(f"Found file with matching stem: {potential_file}")
             return str(potential_file)
 
-    # If still not found, try to find the most recently modified file
-    # within a reasonable timeframe (e.g., last 5 minutes).
+    # Look for files with partial name matches (more specific than just recent files)
+    # This helps avoid picking up unrelated files
+    stem_parts = expected_file.stem.split('_')
+    if len(stem_parts) > 1:
+        # Try matching on first significant part of the filename
+        search_pattern = stem_parts[0]
+        matching_files = []
+        current_time = time.time()
+        
+        for file in base_dir.glob('*'):
+            if file.is_file() and file.suffix.lower() in MEDIA_EXTENSIONS:
+                # Check if filename starts with the same base and was recently modified
+                if file.stem.startswith(search_pattern):
+                    modified_time = file.stat().st_mtime
+                    if current_time - modified_time < 60:  # Only 1 minute to reduce false positives
+                        matching_files.append((file, modified_time))
+        
+        if matching_files:
+            most_recent_match = max(matching_files, key=lambda item: item[1])[0]
+            logging.warning(f"Found approximate match (recent file with similar name): {most_recent_match}")
+            return str(most_recent_match)
+
+    # Last resort: look for ANY recently modified media file (with strict time limit)
     recent_files = []
     current_time = time.time()
     for file in base_dir.glob('*'):
         if file.is_file() and file.suffix.lower() in MEDIA_EXTENSIONS:
             modified_time = file.stat().st_mtime
-            if current_time - modified_time < 300:  # 5 minutes
+            if current_time - modified_time < 30:  # Only 30 seconds to minimize false positives
                 recent_files.append((file, modified_time))
 
     if recent_files:
         most_recent_file = max(recent_files, key=lambda item: item[1])[0]
-        logging.info(f"Found most recent file: {most_recent_file}")
+        logging.warning(f"Found most recent file (fallback): {most_recent_file}. This may not be the correct file.")
+        print(f"\nWarning: Could not find exact file, using most recent download: {most_recent_file.name}")
         return str(most_recent_file)
 
     logging.warning(f"No downloaded file found matching {expected_file} in {base_dir}")

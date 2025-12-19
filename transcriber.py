@@ -9,7 +9,18 @@ import openai
 from utils import get_api_key_securely, logging, APIError, FilesystemError  # Import logging and custom exceptions
 
 def _transcribe_with_openai(audio_file_path):
-    """Transcribe audio using OpenAI's Whisper model."""
+    """Transcribe audio using OpenAI's Whisper model.
+    
+    Args:
+        audio_file_path (str): Path to the audio file to transcribe
+        
+    Returns:
+        str: The transcribed text if successful
+        None: If transcription was cancelled by the user due to file size warnings
+        
+    Raises:
+        openai.APIError: If there's an error with the OpenAI API
+    """
 
     client = openai.OpenAI()
 
@@ -31,25 +42,47 @@ def _transcribe_with_openai(audio_file_path):
     return transcript.text
 
 def _save_transcript_to_file(audio_file_path, transcript_text):
-    """Save transcript to a markdown file."""
+    """Save transcript to a markdown file.
+    
+    Args:
+        audio_file_path (str): Path to the audio file
+        transcript_text (str): The transcribed text to save
+        
+    Returns:
+        str: Path to the saved transcript file
+        
+    Raises:
+        FilesystemError: If there's an error saving the transcript
+    """
 
     audio_path = Path(audio_file_path)
     video_title = audio_path.stem
-    transcript_path = audio_path.with_suffix("_transcript.md")
+    transcript_path = audio_path.parent / f"{audio_path.stem}_transcript.md"
     try:
         with open(transcript_path, "w", encoding="utf-8") as f:
             f.write(f"# Transcript: {video_title}\n\n")
-            paragraphs = transcript_text.split('. ')
-            for i, paragraph in enumerate(paragraphs):
-                f.write(f"{paragraph}.")
-                if i < len(paragraphs) - 1:
-                    f.write("\n\n")  # Add spacing between paragraphs
+            # Write transcript text as-is without naive splitting
+            # This preserves the original formatting and avoids breaking on abbreviations
+            f.write(transcript_text)
         return str(transcript_path)
     except (FileNotFoundError, PermissionError) as e:
         raise FilesystemError(f"Error saving transcript: {str(e)}")
 
 def transcribe_audio(audio_file_path):
-    """Orchestrate audio transcription and saving."""
+    """Orchestrate audio transcription and saving.
+    
+    Args:
+        audio_file_path (str): Path to the audio file to transcribe
+        
+    Returns:
+        str: Path to the saved transcript file if successful
+        None: If transcription was cancelled by the user
+        
+    Raises:
+        APIError: If there's an error with the OpenAI API
+        FilesystemError: If there's an error reading/writing files
+        Exception: For other unexpected errors
+    """
 
     try:
         get_api_key_securely()  # Ensure API key is set
